@@ -18,8 +18,8 @@ import os
 from optparse import make_option
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from django.test.utils import setup_test_environment
-from django.test.utils import teardown_test_environment
+from django.core.management import call_command
+from django.test.simple import DjangoTestSuiteRunner
 
 from lettuce import Runner
 from lettuce import registry
@@ -52,8 +52,8 @@ class Command(BaseCommand):
         raise SystemExit(int(failed))
 
     def handle(self, *args, **options):
-        settings.DEBUG = False
-        setup_test_environment()
+        test_runner = DjangoTestSuiteRunner()
+        test_runner.setup_test_environment()
 
         verbosity = int(options.get('verbosity', 4))
         apps_to_run = tuple(options.get('apps', '').split(","))
@@ -72,6 +72,11 @@ class Command(BaseCommand):
             else:
                 paths = harvest_lettuces(apps_to_run, apps_to_avoid)
 
+            test_db = test_runner.setup_databases()
+            if 'south' in settings.INSTALLED_APPS:
+                migrate_options = dict(settings=options['settings'])
+                call_command('migrate', **migrate_options)
+
             for path in paths:
                 registry.clear()
                 result = Runner(path, options.get('scenarios'), verbosity).run()
@@ -79,10 +84,12 @@ class Command(BaseCommand):
                 if not result or result.steps != result.steps_passed:
                     failed = True
 
+            test_runner.teardown_databases(test_db)
+
         except Exception, e:
             import traceback
             traceback.print_exc(e)
 
         finally:
             server.stop(failed)
-            teardown_test_environment()
+            test_runner.teardown_test_environment()
