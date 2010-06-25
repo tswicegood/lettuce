@@ -84,8 +84,10 @@ class Command(BaseCommand):
         try:
 
             try:
+                print "Setting up a test database..."
                 test_db = test_runner.setup_databases()
                 if 'south' in settings.INSTALLED_APPS:
+                    print "Running migrations..."
                     call_command('migrate', **dict(
                         settings = options['settings'],
                         verbosity=0
