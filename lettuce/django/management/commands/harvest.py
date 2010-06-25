@@ -85,13 +85,17 @@ class Command(BaseCommand):
 
             try:
                 test_db = test_runner.setup_databases()
+                db_command_options = dict(settings=options['settings'], verbosity=0)
                 if 'south' in settings.INSTALLED_APPS:
-                    migrate_options = dict(settings=options['settings'])
-                    call_command('migrate', **migrate_options)
-            except ImproperlyConfigured:
-                # lettuce will be able to test django projects that
-                # does not have database
-                test_db = None
+                    call_command('migrate', **db_command_options)
+
+            except ImproperlyConfigured, e:
+                if "You haven't set the database" in unicode(e):
+                    # lettuce will be able to test django projects that
+                    # does not have database
+                    test_db = None
+                else:
+                    raise e
 
             for path in paths:
                 registry.clear()
