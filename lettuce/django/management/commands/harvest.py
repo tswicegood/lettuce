@@ -85,9 +85,11 @@ class Command(BaseCommand):
 
             try:
                 test_db = test_runner.setup_databases()
-                db_command_options = dict(settings=options['settings'], verbosity=0)
                 if 'south' in settings.INSTALLED_APPS:
-                    call_command('migrate', **db_command_options)
+                    call_command('migrate', **dict(
+                        settings = options['settings'],
+                        verbosity=0
+                    ))
 
             except ImproperlyConfigured, e:
                 if "You haven't set the database" in unicode(e):
