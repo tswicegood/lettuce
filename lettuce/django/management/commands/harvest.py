@@ -21,6 +21,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from django.test.simple import DjangoTestSuiteRunner
+from django.core.exceptions import ImproperlyConfigured
 
 from lettuce import Runner
 from lettuce import registry
@@ -67,7 +68,7 @@ class Command(BaseCommand):
         return paths
 
     def handle(self, *args, **options):
-        test_runner = DjangoTestSuiteRunner()
+        test_runner = DjangoTestSuiteRunner(verbosity=0)
         test_runner.setup_test_environment()
 
         verbosity = int(options.get('verbosity', 4))
@@ -81,10 +82,16 @@ class Command(BaseCommand):
 
         failed = False
         try:
-            test_db = test_runner.setup_databases()
-            if 'south' in settings.INSTALLED_APPS:
-                migrate_options = dict(settings=options['settings'])
-                call_command('migrate', **migrate_options)
+
+            try:
+                test_db = test_runner.setup_databases()
+                if 'south' in settings.INSTALLED_APPS:
+                    migrate_options = dict(settings=options['settings'])
+                    call_command('migrate', **migrate_options)
+            except ImproperlyConfigured:
+                # lettuce will be able to test django projects that
+                # does not have database
+                test_db = None
 
             for path in paths:
                 registry.clear()
@@ -93,12 +100,13 @@ class Command(BaseCommand):
                 if not result or result.steps != result.steps_passed:
                     failed = True
 
-            test_runner.teardown_databases(test_db)
-
         except Exception, e:
             import traceback
             traceback.print_exc(e)
 
         finally:
-            server.stop(failed)
+            if test_db:
+                test_runner.teardown_databases(test_db)
+
             test_runner.teardown_test_environment()
+            server.stop(failed)
