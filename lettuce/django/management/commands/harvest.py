@@ -16,20 +16,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import sys
-from StringIO import StringIO
 from optparse import make_option
-from django.db import connection
-from django.conf import settings
 from django.core.management.base import BaseCommand
-from django.core.management import call_command
-from django.test.simple import DjangoTestSuiteRunner
-from django.core.exceptions import ImproperlyConfigured
 
 from lettuce import Runner
 from lettuce import registry
 
+from lettuce.django import db
 from lettuce.django import server
 from lettuce.django import harvest_lettuces
+
+from django.db import connections
 
 class Command(BaseCommand):
     help = u'Run lettuce tests all along installed apps'
@@ -69,46 +66,16 @@ class Command(BaseCommand):
 
         return paths
 
-    def run_django_command(self, command, **options):
-        options['verbosity'] = 0
-        old_stderr = sys.stderr
-        old_stdout = sys.stdout
-
-        sys.stderr = sys.stdout = StringIO()
-
-        call_command(command, **options)
-
-        sys.stderr = old_stderr
-        sys.stdout = old_stdout
-
     def handle(self, *args, **options):
-        test_runner = DjangoTestSuiteRunner(verbosity=0)
-        test_runner.setup_test_environment()
-
         verbosity = int(options.get('verbosity', 4))
         apps_to_run = tuple(options.get('apps', '').split(","))
         apps_to_avoid = tuple(options.get('avoid_apps', '').split(","))
         run_server = not options.get('no_server', False)
 
-        try:
-            sys.stdout.write("Setting up a test database...")
-            test_db = test_runner.setup_databases()
-            if 'south' in settings.INSTALLED_APPS:
-                self.run_django_command('migrate', settings=options['settings'])
-
-            call_command('loaddata', verbosity=0)
-            print "OK"
-
-        except ImproperlyConfigured, e:
-            if "You haven't set the database" in unicode(e):
-                # lettuce will be able to test django projects that
-                # does not have database
-                test_db = None
-                print "Ignored (you have not configured your database in setting.py)"
-            else:
-                raise e
-
         paths = self.get_paths(args, apps_to_run, apps_to_avoid)
+        env = db.Manager(silenced=False)
+        test_database = env.setup(connections)
+
         if run_server:
             server.start()
 
@@ -127,8 +94,5 @@ class Command(BaseCommand):
             traceback.print_exc(e)
 
         finally:
-            if test_db:
-                test_runner.teardown_databases(test_db)
-
-            test_runner.teardown_test_environment()
+            env.teardown(test_database)
             server.stop(failed)

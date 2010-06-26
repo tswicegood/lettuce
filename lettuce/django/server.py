@@ -32,6 +32,8 @@ from django.core.servers.basehttp import WSGIRequestHandler
 from django.core.servers.basehttp import WSGIServerException
 from django.core.servers.basehttp import AdminMediaHandler
 
+from lettuce.django import db
+
 class LettuceServerException(WSGIServerException):
     pass
 
@@ -120,6 +122,9 @@ class ThreadedServer(threading.Thread):
 
     def run(self):
         self.lock.acquire()
+
+        env = db.Manager()
+        test_database = env.setup()
         pidfile = os.path.join(tempfile.gettempdir(), 'lettuce-django.pid')
         if os.path.exists(pidfile):
             pid = int(open(pidfile).read())
@@ -173,8 +178,15 @@ class ThreadedServer(threading.Thread):
         global keep_running
         while keep_running:
             httpd.handle_request()
+            from django.contrib.auth.models import User
+            print
+            print User.objects.filter(username__icontains='gabriel')
+            print User.objects.all()
+            print
             if self.lock.locked():
                 self.lock.release()
+
+        env.teardown(test_database)
 
 class Server(object):
     """A silenced, lightweight and simple django's builtin server so
