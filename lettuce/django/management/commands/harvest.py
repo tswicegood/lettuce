@@ -18,6 +18,7 @@ import os
 import sys
 from StringIO import StringIO
 from optparse import make_option
+from django.db import connection
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
@@ -89,29 +90,30 @@ class Command(BaseCommand):
         apps_to_avoid = tuple(options.get('avoid_apps', '').split(","))
         run_server = not options.get('no_server', False)
 
+        try:
+            sys.stdout.write("Setting up a test database...")
+            test_db = test_runner.setup_databases()
+            if 'south' in settings.INSTALLED_APPS:
+                self.run_django_command('migrate', settings=options['settings'])
+
+            call_command('loaddata', verbosity=0)
+            print "OK"
+
+        except ImproperlyConfigured, e:
+            if "You haven't set the database" in unicode(e):
+                # lettuce will be able to test django projects that
+                # does not have database
+                test_db = None
+                print "Ignored (you have not configured your database in setting.py)"
+            else:
+                raise e
+
         paths = self.get_paths(args, apps_to_run, apps_to_avoid)
         if run_server:
             server.start()
 
         failed = False
         try:
-
-            try:
-                sys.stdout.write("Setting up a test database...")
-                test_db = test_runner.setup_databases()
-                print "OK"
-                if 'south' in settings.INSTALLED_APPS:
-                    sys.stdout.write("Running migrations...")
-                    self.run_django_command('migrate', settings=options['settings'])
-                    print "OK"
-
-            except ImproperlyConfigured, e:
-                if "You haven't set the database" in unicode(e):
-                    # lettuce will be able to test django projects that
-                    # does not have database
-                    test_db = None
-                else:
-                    raise e
 
             for path in paths:
                 registry.clear()
