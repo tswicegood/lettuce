@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import sys
+from StringIO import StringIO
 from optparse import make_option
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -67,6 +68,18 @@ class Command(BaseCommand):
 
         return paths
 
+    def run_django_command(self, command, **options):
+        options['verbosity'] = 0
+        old_stderr = sys.stderr
+        old_stdout = sys.stdout
+
+        sys.stderr = sys.stdout = StringIO()
+
+        call_command(command, **options)
+
+        sys.stderr = old_stderr
+        sys.stdout = old_stdout
+
     def handle(self, *args, **options):
         test_runner = DjangoTestSuiteRunner(verbosity=0)
         test_runner.setup_test_environment()
@@ -84,14 +97,13 @@ class Command(BaseCommand):
         try:
 
             try:
-                print "Setting up a test database..."
+                sys.stdout.write("Setting up a test database...")
                 test_db = test_runner.setup_databases()
+                print "OK"
                 if 'south' in settings.INSTALLED_APPS:
-                    print "Running migrations..."
-                    call_command('migrate', **dict(
-                        settings = options['settings'],
-                        verbosity=0
-                    ))
+                    sys.stdout.write("Running migrations...")
+                    self.run_django_command('migrate', settings=options['settings'])
+                    print "OK"
 
             except ImproperlyConfigured, e:
                 if "You haven't set the database" in unicode(e):
