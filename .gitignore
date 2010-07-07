@@ -8,3 +8,8 @@ build/
 dist/
 .DS_Store
 *.swp
+bin/
+include/
+lib/
+man/
+share/*
