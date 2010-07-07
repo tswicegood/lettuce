@@ -1,0 +1,5 @@
+nose
+mox
+sphinx
+lxml
+django
