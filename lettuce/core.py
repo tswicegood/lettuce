@@ -764,6 +764,7 @@ class TotalResult(object):
         self.steps_failed = 0
         self.steps_skipped = 0
         self.steps_undefined= 0
+        self.steps_pending = 0
         self._proposed_definitions = []
         self.steps = 0
         for feature_result in self.feature_results:
@@ -772,6 +773,7 @@ class TotalResult(object):
                 self.steps_passed += len(scenario_result.steps_passed)
                 self.steps_failed += len(scenario_result.steps_failed)
                 self.steps_skipped += len(scenario_result.steps_skipped)
+                self.steps_pending += len(scenario_result.steps_pending)
                 self.steps_undefined += len(scenario_result.steps_undefined)
                 self.steps += scenario_result.total_steps
                 self._proposed_definitions.extend(scenario_result.steps_undefined)

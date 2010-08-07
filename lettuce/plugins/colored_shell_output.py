@@ -85,6 +85,9 @@ def print_step_ran(step):
     elif step.passed:
         color = "\033[1;32m"
 
+    elif step.pending:
+        color = "\033[1;33m"
+
     elif step.defined_at:
         color = "\033[0;36m"
 
@@ -189,6 +192,7 @@ def print_end(total):
     kinds_and_colors = {
         'failed': '\033[0;31m',
         'skipped': '\033[0;36m',
+        'pending': '\033[1;33m',
         'undefined': '\033[0;33m'
     }
 

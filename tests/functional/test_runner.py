@@ -810,3 +810,59 @@ def test_output_snippets_with_normalized_unicode_names():
         u"def entao_eu_fico_felizao(step):\n"
         u"    pass\n"
     )
+
+@with_setup(prepare_stdout)
+def test_output_for_pending_steps():
+    runner = Runner(feature_name('pending'), verbosity=1)
+    runner.run()
+    assert_stdout_lines(
+        u"\n"
+        u"\033[1;37mFeature: Pending steps inside Lettuce                       \033[1;30m# tests/functional/output_features/pending/pending.feature:1\033[0m\n"
+        u"\033[1;37m  As lettuce author                                         \033[1;30m# tests/functional/output_features/pending/pending.feature:2\033[0m\n"
+        u"\033[1;37m  In order to keep track of what scenarios are not complete \033[1;30m# tests/functional/output_features/pending/pending.feature:3\033[0m\n"
+        u"\033[1;37m  I want to be able to mark steps as pending                \033[1;30m# tests/functional/output_features/pending/pending.feature:4\033[0m\n"
+        u"\n"
+        u"\033[1;37m  Scenario: Pending first step                              \033[1;30m# tests/functional/output_features/pending/pending.feature:6\033[0m\n"
+        u"\033[1;30m    Given I have a pending step                             \033[1;30m# tests/functional/output_features/pending/pending.py:6\033[0m\n"
+        u"\033[A\033[1;33m    Given I have a pending step                             \033[1;30m# tests/functional/output_features/pending/pending.py:6\033[0m\n"
+        u"\033[1;30m    Then this failing step will never run                   \033[1;30m# tests/functional/output_features/pending/pending.py:10\033[0m\n"
+        u"\033[A\033[0;36m    Then this failing step will never run                   \033[1;30m# tests/functional/output_features/pending/pending.py:10\033[0m\n"
+        u"\033[1;37m  Scenario: Pending second step                             \033[1;30m# tests/functional/output_features/pending/pending.feature:10\033[0m\n"
+        u"\033[1;30m    Given I have a passing step                             \033[1;30m# tests/functional/output_features/pending/pending.py:14\033[0m\n"
+        u"\033[A\033[1;32m    Given I have a passing step                             \033[1;30m# tests/functional/output_features/pending/pending.py:14\033[0m\n"
+        u"\033[1;30m    Then I have a pending step                              \033[1;30m# tests/functional/output_features/pending/pending.py:6\033[0m\n"
+        u"\033[A\033[1;33m    Then I have a pending step                              \033[1;30m# tests/functional/output_features/pending/pending.py:6\033[0m\n"
+        u"\n"
+        u"\033[1;37m1 feature (\033[0;31m0 passed\033[1;37m)\033[0m\n"
+        u"\033[1;37m2 scenarios (\033[0;31m0 passed\033[1;37m)\033[0m\n"
+        u"\033[1;37m4 steps (\033[0;36m3 skipped\033[1;37m, \033[1;33m2 pending\033[1;37m, \033[1;32m1 passed\033[1;37m)\033[0m\n"
+    )
+
+@with_setup(prepare_stdout)
+def test_output_for_pending_steps_without_color():
+    runner = Runner(feature_name('pending'), verbosity=3)
+    runner.run()
+
+    assert_stdout_lines(
+        u"\n"
+        u"Feature: Pending steps inside Lettuce                       # tests/functional/output_features/pending/pending.feature:1\n"
+        u"  As lettuce author                                         # tests/functional/output_features/pending/pending.feature:2\n"
+        u"  In order to keep track of what scenarios are not complete # tests/functional/output_features/pending/pending.feature:3\n"
+        u"  I want to be able to mark steps as pending                # tests/functional/output_features/pending/pending.feature:4\n"
+        u"\n"
+        u"  Scenario: Pending first step                              # tests/functional/output_features/pending/pending.feature:6\n"
+        u"    Given I have a pending step                             # tests/functional/output_features/pending/pending.py:6\n"
+        u"\033[A    Given I have a pending step                             # tests/functional/output_features/pending/pending.py:6\n"
+        u"    Then this failing step will never run                   # tests/functional/output_features/pending/pending.py:10\n"
+        u"\033[A    Then this failing step will never run                   # tests/functional/output_features/pending/pending.py:10\n"
+        u"  Scenario: Pending second step                             # tests/functional/output_features/pending/pending.feature:10\n"
+        u"    Given I have a passing step                             # tests/functional/output_features/pending/pending.py:14\n"
+        u"\033[A    Given I have a passing step                             # tests/functional/output_features/pending/pending.py:14\n"
+        u"    Then I have a pending step                              # tests/functional/output_features/pending/pending.py:6\n"
+        u"\033[A    Then I have a pending step                              # tests/functional/output_features/pending/pending.py:6\n"
+        u"\n"
+        u"1 feature (0 passed)\n"
+        u"2 scenarios (0 passed)\n"
+        u"4 steps (3 skipped, 2 pending, 1 passed)\n"
+    )
+
