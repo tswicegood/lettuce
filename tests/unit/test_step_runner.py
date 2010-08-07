@@ -20,7 +20,7 @@ from lettuce import core
 from lettuce import registry
 from lettuce.core import Step
 from lettuce.core import Feature
-from nose.tools import assert_equals, with_setup
+from nose.tools import assert_equals, assert_true, with_setup
 
 FEATURE1 = """
 Feature: Count steps ran
@@ -338,3 +338,11 @@ def test_pending_exceptions_do_not_count_as_failed_steps():
     step = steps_ran[0]
     assert_equals(bool(step.failed), False)
 
+@with_setup(pending_step_environ)
+def test_pending_exceptions_cause_steps_to_be_marked_as_pending():
+    steps_ran = []
+    accumulate_steps(steps_ran)
+    scenario_result = scenario_result_for_feature_9()
+
+    step = steps_ran[0]
+    assert_true(step.pending)

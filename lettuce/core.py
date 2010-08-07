@@ -97,6 +97,7 @@ class StepDefinition(object):
             self.step.passed = True
 
         except PendingStepDefinition, e:
+            self.step.pending = True
             raise e
 
         except Exception, e:
@@ -162,6 +163,7 @@ class Step(object):
     ran = False
     passed = None
     failed = None
+    pending = None
     related_outline = None
 
     def __init__(self, sentence, remaining_lines, line=None, filename=None):
