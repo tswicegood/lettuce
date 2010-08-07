@@ -323,12 +323,15 @@ def test_count_pending_exceptions_as_skipped_steps():
     scenario_result = scenario_result_for_feature_9()
     assert_equals(len(scenario_result.steps_skipped), 1)
 
+def accumulate_steps(accumulator):
+    @after.each_step
+    def accumulate(step):
+        accumulator.append(step)
+
 @with_setup(pending_step_environ)
 def test_pending_exceptions_do_not_count_as_failed_steps():
     steps_ran = []
-    @after.each_step
-    def just_register(step):
-        steps_ran.append(step)
+    accumulate_steps(steps_ran)
     scenario_result = scenario_result_for_feature_9()
     assert_equals(len(scenario_result.steps_failed), 0)
 
