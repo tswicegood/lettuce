@@ -44,3 +44,11 @@ class LettuceSyntaxError(SyntaxError):
         self.filename = filename
         self.msg = "Syntax error at: %s\n%s\n" % (filename, string)
 
+class PendingStepDefinition(Exception):
+    """Exception raised by calling lettuce.utils.pending().
+
+    This is used as an unfortunate GOTO of sorts in that its for
+    flow control, but it does provide the cleanest API from the
+    perspective of the feature writer.
+    """
+    pass
