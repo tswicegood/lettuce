@@ -124,12 +124,12 @@ def print_end(total):
     if total.proposed_definitions:
         wrt("\nYou can implement step definitions for undefined steps with these snippets:\n\n")
         wrt("# -*- coding: utf-8 -*-\n")
-        wrt("from lettuce import step\n\n")
+        wrt("from lettuce import step, pending\n\n")
         for step in total.proposed_definitions:
             method_name = step.proposed_method_name
             wrt("@step(u'%s')\n" % step.proposed_sentence)
             wrt("def %s:\n" % method_name)
-            wrt("    pass\n")
+            wrt("    pending()\n")
 
 def print_no_features_found(where):
     where = core.fs.relpath(where)
