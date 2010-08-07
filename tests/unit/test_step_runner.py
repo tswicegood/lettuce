@@ -298,3 +298,40 @@ def test_count_raised_exceptions_as_failing_steps():
     finally:
         registry.clear()
 
+
+def pending_step_environ():
+    from lettuce import utils
+    from lettuce import registry
+    registry.clear()
+
+    @step('I have a pending step')
+    def have_a_pending_step(*args, **kw):
+        utils.pending()
+
+FEATURE9 = """
+Feature: Pending steps
+    Scenario: Pending step
+        Given I have a pending step
+"""
+
+def scenario_result_for_feature_9():
+    f = Feature.from_string(FEATURE9)
+    return f.run().scenario_results[0]
+
+@with_setup(pending_step_environ)
+def test_count_pending_exceptions_as_skipped_steps():
+    scenario_result = scenario_result_for_feature_9()
+    assert_equals(len(scenario_result.steps_skipped), 1)
+
+@with_setup(pending_step_environ)
+def test_pending_exceptions_do_not_count_as_failed_steps():
+    steps_ran = []
+    @after.each_step
+    def just_register(step):
+        steps_ran.append(step)
+    scenario_result = scenario_result_for_feature_9()
+    assert_equals(len(scenario_result.steps_failed), 0)
+
+    step = steps_ran[0]
+    assert_equals(bool(step.failed), False)
+

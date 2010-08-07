@@ -25,6 +25,7 @@ from lettuce.fs import FileSystem
 from lettuce.registry import STEP_REGISTRY
 from lettuce.registry import call_hook
 from lettuce.exceptions import ReasonToFail
+from lettuce.exceptions import PendingStepDefinition
 from lettuce.exceptions import NoDefinitionFound
 from lettuce.exceptions import LettuceSyntaxError
 
@@ -94,6 +95,10 @@ class StepDefinition(object):
         try:
             ret = self.function(self.step, *args, **kw)
             self.step.passed = True
+
+        except PendingStepDefinition, e:
+            raise e
+
         except Exception, e:
             self.step.failed = True
             self.step.why = ReasonToFail(e)
@@ -417,6 +422,7 @@ class Scenario(object):
             all_steps = []
             steps_passed = []
             steps_failed = []
+            steps_pending = []
             steps_undefined = []
 
             reasons_to_fail = []
@@ -436,6 +442,9 @@ class Scenario(object):
 
                 except NoDefinitionFound, e:
                     steps_undefined.append(e.step)
+
+                except PendingStepDefinition, e:
+                    steps_pending.append(step)
 
                 except Exception, e:
                     steps_failed.append(step)

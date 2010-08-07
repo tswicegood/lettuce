@@ -164,3 +164,4 @@ def test_scenario_outline_represent_examples():
         '    | first     | primeiro  |\n'
         '    | second    | segundo   |\n'
     )
+
