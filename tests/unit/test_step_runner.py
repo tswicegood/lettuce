@@ -308,10 +308,15 @@ def pending_step_environ():
     def have_a_pending_step(*args, **kw):
         utils.pending()
 
+    @step('I have a failing test that will never run')
+    def have_a_failing_test_that_will_never_run(*args, **kwargs):
+        assert True == False
+
 FEATURE9 = """
 Feature: Pending steps
     Scenario: Pending step
         Given I have a pending step
+        Then I have a failing test that will never run
 """
 
 def scenario_result_for_feature_9():
@@ -321,7 +326,7 @@ def scenario_result_for_feature_9():
 @with_setup(pending_step_environ)
 def test_count_pending_exceptions_as_skipped_steps():
     scenario_result = scenario_result_for_feature_9()
-    assert_equals(len(scenario_result.steps_skipped), 1)
+    assert_equals(len(scenario_result.steps_skipped), 2)
 
 def accumulate_steps(accumulator):
     @after.each_step
@@ -346,3 +351,11 @@ def test_pending_exceptions_cause_steps_to_be_marked_as_pending():
 
     step = steps_ran[0]
     assert_true(step.pending)
+
+@with_setup(pending_step_environ)
+def test_steps_after_pending_are_skipped():
+    steps_ran = []
+    accumulate_steps(steps_ran)
+    scenario_result = scenario_result_for_feature_9()
+
+    assert_equals(len(scenario_result.steps_pending), 1)

@@ -438,7 +438,7 @@ class Scenario(object):
                     if run_callbacks:
                         call_hook('before_each', 'step', step)
 
-                    if not steps_failed and not steps_undefined:
+                    if not steps_failed and not steps_undefined and not steps_pending:
                         step.run(ignore_case)
                         steps_passed.append(step)
 
@@ -470,6 +470,7 @@ class Scenario(object):
                 steps_passed,
                 steps_failed,
                 steps_skipped,
+                steps_pending,
                 steps_undefined
             )
 
@@ -738,13 +739,14 @@ class FeatureResult(object):
 class ScenarioResult(object):
     """Object that holds results of each step ran from within a scenario"""
     def __init__(self, scenario, steps_passed, steps_failed, steps_skipped,
-                 steps_undefined):
+                 steps_pending, steps_undefined):
 
         self.scenario = scenario
 
         self.steps_passed = steps_passed
         self.steps_failed = steps_failed
         self.steps_skipped = steps_skipped
+        self.steps_pending = steps_pending
         self.steps_undefined = steps_undefined
 
         all_lists = [steps_passed + steps_skipped + steps_undefined + steps_failed]
