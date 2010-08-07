@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import lettuce
-from nose.tools import assert_equals
+from nose.tools import assert_equals, assert_true, assert_raises
 from mox import Mox
 
 def test_has_version():
@@ -55,3 +55,10 @@ def test_terrain_import_exception():
         lettuce.Runner("[some path]")
     except SystemExit:
         mox.VerifyAll()
+
+def test_has_pending_function():
+    assert_true(hasattr(lettuce, 'pending'))
+
+def test_pending_raises_exception():
+    assert_raises(lettuce.exceptions.PendingStepDefinition, lettuce.pending)
+

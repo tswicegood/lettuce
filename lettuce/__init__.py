@@ -33,6 +33,8 @@ from lettuce.registry import call_hook
 from lettuce.registry import STEP_REGISTRY
 from lettuce.registry import CALLBACK_REGISTRY
 
+from lettuce.utils import pending
+
 from lettuce.exceptions import LettuceSyntaxError
 
 __all__ = ['after', 'before', 'step', 'world', 'STEP_REGISTRY', 'CALLBACK_REGISTRY', 'call_hook']
