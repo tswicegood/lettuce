@@ -188,8 +188,11 @@ class Server(object):
 
     def __init__(self, address='0.0.0.0', port=8000):
         self.address = unicode(address)
-        self.port = int(port)
-        self._actual_server = ThreadedServer(self.address, self.port)
+        self._actual_server = ThreadedServer(self.address, port)
+
+    @property
+    def port(self):
+        return self._actual_server.port
 
     def start(self):
         """Starts the webserver thread, and waits it to be available"""
