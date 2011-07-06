@@ -1,5 +1,5 @@
 # lettuce
-> Version 0.1.14 - barium
+> Version 0.1.27 - barium
 
 ## On release names
 
@@ -9,7 +9,7 @@ Barium: In form of "barium nitrate" is commonly used to make green fireworks. Su
 
 # What
 
-Lettuce is a BDD tool for python, 100% inspired on [cucumber](http://cukes.info/ "BDD with elegance and joy").
+Lettuce is a [BDD](http://en.wikipedia.org/wiki/Behavior_Driven_Development) tool for python, 100% inspired on [cucumber](http://cukes.info/ "BDD with elegance and joy").
 
 # Motivation
 
@@ -26,6 +26,18 @@ Lettuce is a BDD tool for python, 100% inspired on [cucumber](http://cukes.info/
 
 **you will need to install these dependencies in order to** *hack* **lettuce** :)
 all them are used within lettuce tests
+
+## you could use a virtualenv:
+
+    > mkvirtualenv lettuce
+    > workon lettuce
+    > pip install -r requirements.txt
+
+## or just install manually:
+
+    > sudo pip install -r requirements.txt
+
+## or do it really from scratch:
 
 * [nose](http://code.google.com/p/python-nose/)
     > [sudo] pip install nose
@@ -68,11 +80,23 @@ come with automated tests, and if suitable, with proper documentation.
 1. [Cucumber](http://cukes.info/) crew, for creating such a AWESOME project, and for inspiring [Lettuce](http://lettuce.it/).
 2. [Tatiana](http://github.com/tatiana) for helping a lot with documentation.
 3. [Django](http://djangoproject.com) which documentation structure was borrowed.
+4. [Andres Jaan Tack](http://github.com/ajtack) for his awesome contributions
+4. [Erlis Vidal](http://github.com/erlis) for creating a tutorial of how to install lettuce on windows.
+
+# Known issues
+
+## windows support
+
+[erlis](https://github.com/erlis) have made a awesome job by making
+lettuce work on windows. He posted
+[here](http://www.erlisvidal.com/blog/2010/10/how-install-lettuce-windows)
+how to install lettuce on windows.
+
 
 # License
 
     <Lettuce - Behaviour Driven Development for python>
-    Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+    Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

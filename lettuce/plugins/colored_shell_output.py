@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,8 +17,13 @@
 import os
 import re
 import sys
-from lettuce import strings
+import platform
+import struct
+
 from lettuce import core
+from lettuce import strings
+from lettuce import terminal
+
 from lettuce.terrain import after
 from lettuce.terrain import before
 
@@ -58,7 +63,7 @@ def print_step_running(step):
     string = step.represent_string(step.original_sentence)
     string = wrap_file_and_line(string, '\033[1;30m', '\033[0m')
     write_out("%s%s" % (color, string))
-    if step.hashes:
+    if step.hashes and step.defined_at:
         for line in step.represent_hashes().splitlines():
             write_out("\033[1;30m%s\033[0m\n" % line)
 
@@ -67,7 +72,7 @@ def print_step_ran(step):
     if step.scenario.outlines:
         return
 
-    if step.hashes:
+    if step.hashes and step.defined_at:
         write_out("\033[A" * (len(step.hashes) + 1))
 
     string = step.represent_string(step.original_sentence)
@@ -77,6 +82,14 @@ def print_step_ran(step):
 
 
     prefix = '\033[A'
+    width, height = terminal.get_size()
+    lines_up = len(string) / float(width)
+    if lines_up < 1:
+        lines_up = 1
+    else:
+        lines_up = int(lines_up) + 1
+
+    #prefix = prefix * lines_up
 
     if step.failed:
         color = "\033[0;31m"

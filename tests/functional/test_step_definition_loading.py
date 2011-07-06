@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -54,3 +54,9 @@ def test_recursive_fallback():
     )
 
     del world.step_list
+
+def test_discard_invalid_filenames():
+    "If a module has a invalid file name, we just discard it"
+
+    runner = Runner(join(abspath(dirname(__file__)), 'invalid_module_name'), verbosity=0)
+    runner.run()

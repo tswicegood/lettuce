@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -120,6 +120,37 @@ Feature: Big scenario outline
 
 FEATURE9 = """
 Feature: Big scenario outline
+  Scenario: big scenario outlines
+    Given I do fill 'description' with '<value_two>'
+
+  Examples:
+    | value_two_thousand_and_three_biiiiiiiiiiiiiiiiiiiiiiiiiiiiig |
+    | 1                                                            |
+    | 2                                                            |
+    | 3                                                            |
+"""
+
+FEATURE10 = """
+Feature: Big sentence
+  As a clever guy
+  I want to describe this Feature
+  So that I can take care of my Scenario
+  Scenario: Regular numbers
+    Given a huge sentence, that have so many characters
+    And another one, very tiny
+
+    # Feature: Big sentence
+    #   As a clever guy
+    #   I want to describe this Feature
+    #   So that I can take care of my Scenario
+    #   Scenario: Regular numbers
+    #     Given a huge sentence, that have so many characters
+    #     And another one, very tiny
+"""
+
+FEATURE11 = """
+@red @blue
+Feature: Feature with tags at feature level
   Scenario: big scenario outlines
     Given I do fill 'description' with '<value_two>'
 
@@ -283,3 +314,13 @@ def test_description_on_big_sentenced_steps():
         "So that I can take care of my Scenario"
     )
 
+def test_comments():
+    "It should ignore lines that start with #, despite white spaces"
+    feature = Feature.from_string(FEATURE10)
+
+    assert_equals(feature.max_length, 55)
+
+def test_feature_tags():
+    "It should collect up tag lines into the feature"
+    feature = Feature.from_string(FEATURE11)
+    assert_equals(feature.tags, ["red", "blue"])

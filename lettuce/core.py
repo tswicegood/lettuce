@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 
 import re
 import codecs
+import string
+import sys
 import unicodedata
 from copy import deepcopy
 from lettuce import strings
@@ -29,6 +31,38 @@ from lettuce.exceptions import NoDefinitionFound
 from lettuce.exceptions import LettuceSyntaxError
 
 fs = FileSystem()
+
+class HashList(list):
+    __base_msg = 'The step "%s" have no table defined, so ' \
+        'that you can\'t use step.hashes.%s'
+
+    def __init__(self, step, *args, **kw):
+        self.step = step
+        super(HashList, self).__init__(*args, **kw)
+
+    def values_under(self, key):
+        msg = 'The step "%s" have no table column with the key "%s". ' \
+            'Could you check your step definition for that ? ' \
+            'Maybe there is a typo :)'
+
+        try:
+            return [h[key] for h in self]
+        except KeyError:
+            raise AssertionError(msg % (self.step.sentence, key))
+
+    @property
+    def first(self):
+        if len(self) > 0:
+            return self[0]
+
+        raise AssertionError(self.__base_msg % (self.step.sentence, 'first'))
+
+    @property
+    def last(self):
+        if len(self) > 0:
+            return self[-1]
+
+        raise AssertionError(self.__base_msg % (self.step.sentence, 'last'))
 
 class Language(object):
     code = 'en'
@@ -80,7 +114,8 @@ class StepDefinition(object):
         try:
             ret = self.function(self.step, *args, **kw)
             self.step.passed = True
-        except Exception, e:
+        except:
+            e = sys.exc_info()[1]
             self.step.failed = True
             self.step.why = ReasonToFail(e)
             raise e
@@ -149,10 +184,10 @@ class Step(object):
         self.sentence = sentence
         self.original_sentence = sentence
         self._remaining_lines = remaining_lines
-        keys, hashes = self._parse_remaining_lines(remaining_lines)
+        keys, hashes, self.multiline = self._parse_remaining_lines(remaining_lines)
 
         self.keys = tuple(keys)
-        self.hashes = list(hashes)
+        self.hashes = HashList(self, hashes)
         self.described_at = StepDescription(line, filename)
 
         self.proposed_method_name, self.proposed_sentence = self.propose_definition()
@@ -195,11 +230,23 @@ class Step(object):
 
     def solve_and_clone(self, data):
         sentence = self.sentence
+        hashes = self.hashes[:]  # deep copy
         for k, v in data.items():
-            sentence = sentence.replace(u'<%s>' % unicode(k), unicode(v))
+            def evaluate(stuff):
+                return stuff.replace(u'<%s>' % unicode(k), unicode(v))
+
+            def evaluate_hash_value(hash_row):
+                new_row = {}
+                for rkey, rvalue in hash_row.items():
+                    new_row[rkey] = evaluate(rvalue)
+                return new_row
+
+            sentence = evaluate(sentence)
+            hashes = map(evaluate_hash_value, hashes)
 
         new = deepcopy(self)
         new.sentence = sentence
+        new.hashes = hashes
         return new
 
     def _calc_list_length(self, lst):
@@ -250,7 +297,9 @@ class Step(object):
         return u'<Step: "%s">' % self.sentence
 
     def _parse_remaining_lines(self, lines):
-        return strings.parse_hashes(lines)
+        multiline = strings.parse_multiline(lines)
+        keys, hashes = strings.parse_hashes(lines)
+        return keys, hashes, multiline
 
     def _get_match(self, ignore_case):
         matched, func = None, lambda: None
@@ -275,6 +324,50 @@ class Step(object):
 
         return matched, step_definition
 
+    def given(self, string):
+        return self.behave_as(string)
+
+    def when(self, string):
+        return self.behave_as(string)
+
+    def then(self, string):
+        return self.behave_as(string)
+
+    def behave_as(self, string):
+        """ Parses and runs steps given in string form.
+
+        In your step definitions, you can use this to run one step from another.
+
+        e.g.
+            @step('something ordinary')
+            def something(step):
+                step.behave_as('Given something defined elsewhere')
+
+            @step('something defined elsewhere')
+            def elsewhere(step):
+                # actual step behavior, maybe.
+
+        This will raise the error of the first failing step (thus halting
+        execution of the step) if a subordinate step fails.
+
+        """
+        lines = string.split('\n')
+        steps = self.many_from_lines(lines)
+
+        if hasattr(self, 'scenario'):
+            for step in steps:
+                step.scenario = self.scenario
+
+        (_, _, steps_failed, _, _) = self.run_all(steps)
+        if not steps_failed:
+            self.passed = True
+            self.failed = False
+            return self.passed
+        else:
+            self.passed = False
+            self.failed = True
+            assert not steps_failed, steps_failed[0].why.exception
+
     def run(self, ignore_case):
         """Runs a step, trying to resolve it on available step
         definitions"""
@@ -291,6 +384,91 @@ class Step(object):
         self.passed = True
         return True
 
+    @staticmethod
+    def run_all(steps, outline = None, run_callbacks = False, ignore_case = True):
+        """Runs each step in the given list of steps.
+
+        Returns a tuple of five lists:
+            - The full set of steps executed
+            - The steps that passed
+            - The steps that failed
+            - The steps that were undefined
+            - The reason for each failing step (indices matching per above)
+
+        """
+        all_steps = []
+        steps_passed = []
+        steps_failed = []
+        steps_undefined = []
+        reasons_to_fail = []
+
+        for step in steps:
+            if outline:
+                step = step.solve_and_clone(outline)
+
+            try:
+                step.pre_run(ignore_case, with_outline=outline)
+
+                if run_callbacks:
+                    call_hook('before_each', 'step', step)
+
+                if not steps_failed and not steps_undefined:
+                    step.run(ignore_case)
+                    steps_passed.append(step)
+
+            except NoDefinitionFound, e:
+                steps_undefined.append(e.step)
+
+            except:
+                e = sys.exc_info()[1]
+                steps_failed.append(step)
+                reasons_to_fail.append(step.why or ReasonToFail(e))
+
+            finally:
+                all_steps.append(step)
+                if run_callbacks:
+                    call_hook('after_each', 'step', step)
+
+        return (all_steps, steps_passed, steps_failed, steps_undefined, reasons_to_fail)
+
+    @classmethod
+    def many_from_lines(klass, lines, filename = None, original_string = None):
+        """Parses a set of steps from lines of input.
+
+        This will correctly parse and produce a list of steps from lines without
+        any Scenario: heading at the top. Examples in table form are correctly
+        parsed, but must be well-formed under a regular step sentence.
+
+        """
+        invalid_first_line_error = '\nFirst line of step "%s" is in %s form.'
+        if lines and strings.wise_startswith(lines[0], u'|'):
+            raise LettuceSyntaxError(
+                None,
+                invalid_first_line_error % (lines[0], 'table'))
+
+        if lines and strings.wise_startswith(lines[0], u'"""'):
+            raise LettuceSyntaxError(
+                None,
+                invalid_first_line_error % (lines[0], 'multiline'))
+
+        # Select only lines that aren't end-to-end whitespace
+        only_whitspace = re.compile('^\s*$')
+        lines = filter(lambda x: not only_whitspace.match(x), lines)
+
+        step_strings = []
+        in_multiline = False
+        for line in lines:
+            if strings.wise_startswith(line, u'"""'):
+                in_multiline = not in_multiline
+                step_strings[-1] += "\n%s" % line
+            elif strings.wise_startswith(line, u"|") or in_multiline:
+                step_strings[-1] += "\n%s" % line
+            else:
+                step_strings.append(line)
+
+        mkargs = lambda s: [s, filename, original_string]
+        return [klass.from_string(*mkargs(s)) for s in step_strings]
+
     @classmethod
     def from_string(cls, string, with_file=None, original_string=None):
         """Creates a new step from string"""
@@ -306,18 +484,62 @@ class Step(object):
 
         return cls(sentence, remaining_lines=lines, line=line, filename=with_file)
 
+
+class RunController(object):
+    def __init__(self):
+        self.delegates = []
+        
+    def add(self, delegate):
+        self.delegates.append(delegate)
+        
+    def want_run_scenario(self, scenario):
+        for delegate in self.delegates:
+            if not delegate.want_run_scenario(scenario):
+                return False
+        return True
+
+
+class TagChecker(object):
+    def __init__(self, tags=None):
+        "Note that tags can contain ~tag which means do not run if have tag"
+        self.tags_to_run = tags or []
+        self.tags_to_run = [string.replace(tag, "@", "") for tag in self.tags_to_run]
+
+    def want_run_scenario(self, scenario):
+        return self.tags_match(scenario.tags)
+
+    def tags_match(self, tags):
+        "Check if supplied tags mean that we should run the task"
+        if len(self.tags_to_run) == 0:
+            return True
+
+        for check_tags in self.tags_to_run:
+            full_match = True
+            for check_tag in check_tags.split(","):
+                if check_tag[0] == "~":
+                    if check_tag[1:] in tags:
+                        full_match = False
+                elif not check_tag in tags:
+                    full_match = False
+            if full_match:
+                return True
+        return False
+
+
 class Scenario(object):
     """ Object that represents each scenario on feature files."""
     described_at = None
     indentation = 2
     table_indentation = indentation + 2
+    
     def __init__(self, name, remaining_lines, keys, outlines, with_file=None,
-                 original_string=None, language=None):
+                 original_string=None, language=None, tags=None):
 
         if not language:
             language = language()
 
         self.name = name
+        self.tags = tags or []
         self.language = language
         self.steps = self._parse_remaining_lines(remaining_lines,
                                                  with_file,
@@ -392,46 +614,38 @@ class Scenario(object):
 
             yield (outline, steps)
 
-    def run(self, ignore_case):
+    @property
+    def ran(self):
+        return all([step.ran for step in self.steps])
+
+    @property
+    def passed(self):
+        return self.ran and all([step.passed for step in self.steps])
+
+    @property
+    def failed(self):
+        return any([step.failed for step in self.steps])
+
+    def run(self, ignore_case, run_controller=None):
         """Runs a scenario, running each of its steps. Also call
         before_each and after_each callbacks for steps and scenario"""
 
         results = []
+        run_controller = run_controller or RunController()
+        # If not going to run the scenario then don't want hooks to run either
+        if not run_controller.want_run_scenario(self):
+            results.append(ScenarioResult(self,
+                                  [],
+                                  [],
+                                  [],
+                                  [],
+                                  False))
+            return results
+
         call_hook('before_each', 'scenario', self)
 
         def run_scenario(almost_self, order=-1, outline=None, run_callbacks=False):
-            all_steps = []
-            steps_passed = []
-            steps_failed = []
-            steps_undefined = []
-
-            reasons_to_fail = []
-            for step in self.steps:
-                if outline:
-                    step = step.solve_and_clone(outline)
-
-                try:
-                    step.pre_run(ignore_case, with_outline=outline)
-
-                    if run_callbacks:
-                        call_hook('before_each', 'step', step)
-
-                    if not steps_failed and not steps_undefined:
-                        step.run(ignore_case)
-                        steps_passed.append(step)
-
-                except NoDefinitionFound, e:
-                    steps_undefined.append(e.step)
-
-                except Exception, e:
-                    steps_failed.append(step)
-                    reasons_to_fail.append(step.why)
-
-                finally:
-                    all_steps.append(step)
-                    if run_callbacks:
-                        call_hook('after_each', 'step', step)
-
+            all_steps, steps_passed, steps_failed, steps_undefined, reasons_to_fail = Step.run_all(self.steps, outline, run_callbacks, ignore_case)
             skip = lambda x: x not in steps_passed and x not in steps_undefined and x not in steps_failed
 
             steps_skipped = filter(skip, all_steps)
@@ -445,7 +659,8 @@ class Scenario(object):
                 steps_passed,
                 steps_failed,
                 steps_skipped,
-                steps_undefined
+                steps_undefined,
+                True
             )
 
         if self.outlines:
@@ -469,11 +684,7 @@ class Scenario(object):
     def _resolve_steps(self, steps, outlines, with_file, original_string):
         for outline in outlines:
             for step in steps:
-                sentence = step.sentence
-                for k, v in outline.items():
-                    sentence = sentence.replace(u'<%s>' % k, v)
-
-                yield Step(sentence, step._remaining_lines)
+                yield step.solve_and_clone(outline)
 
     def _parse_remaining_lines(self, lines, with_file, original_string):
         invalid_first_line_error = '\nInvalid step on scenario "%s".\n' \
@@ -484,15 +695,7 @@ class Scenario(object):
                 with_file,
                 invalid_first_line_error % self.name)
 
-        step_strings = []
-        for line in lines:
-            if strings.wise_startswith(line, u"|"):
-                step_strings[-1] += "\n%s" % line
-            else:
-                step_strings.append(line)
-
-        mkargs = lambda s: [s, with_file, original_string]
-        return [Step.from_string(*mkargs(s)) for s in step_strings]
+        return Step.many_from_lines(lines, with_file, original_string)
 
     def _set_definition(self, definition):
         self.described_at = definition
@@ -505,6 +708,8 @@ class Scenario(object):
             prefix = make_prefix(self.language.first_of_scenario)
 
         head = prefix + self.name
+        if len(self.tags) > 0:
+            head = make_prefix("@" + " @".join(self.tags)) + "\n" + head
 
         return strings.rfill(head, self.feature.max_length + 1, append=u'# %s:%d\n' % (self.described_at.file, self.described_at.line))
 
@@ -513,8 +718,16 @@ class Scenario(object):
         return "\n".join([(u" " * self.table_indentation) + line for line in lines]) + '\n'
 
     @classmethod
-    def from_string(new_scenario, string, with_file=None, original_string=None, language=None):
+    def from_string(new_scenario, string, tags=None, with_file=None, original_string=None, language=None):
         """ Creates a new scenario from string"""
+        tags = tags or []
+        tags = tags[:]
+        
+        # ignoring comments
+        no_comments = strings.get_stripped_lines(string, ignore_lines_starting_with='#')
+        # extract tags
+        strings.consume_tags_lines(no_comments, tags)
+        string = "\n".join(no_comments)
 
         if not language:
             language = Language()
@@ -524,7 +737,8 @@ class Scenario(object):
         keys = []
         outlines = []
         if len(splitted) > 1:
-            part = splitted[-1]
+            parts = [l for l in splitted[1:] if l not in language.examples]
+            part = "".join(parts)
             keys, outlines = strings.parse_hashes(strings.get_stripped_lines(part))
 
         lines = strings.get_stripped_lines(string)
@@ -540,7 +754,8 @@ class Scenario(object):
             outlines=outlines,
             with_file=with_file,
             original_string=original_string,
-            language=language
+            language=language,
+            tags=tags
         )
 
         return scenario
@@ -549,12 +764,13 @@ class Feature(object):
     """ Object that represents a feature."""
     described_at = None
     def __init__(self, name, remaining_lines, with_file, original_string,
-                 language=None):
+                 language=None, tags=None):
 
         if not language:
             language = language()
 
         self.name = name
+        self.tags = tags or []
         self.language = language
 
         self.scenarios, self.description = self._parse_remaining_lines(
@@ -604,6 +820,8 @@ class Feature(object):
         filename = self.described_at.file
         line = self.described_at.line
         head = strings.rfill(self.get_head(), length, append=u"# %s:%d\n" % (filename, line))
+        if len(self.tags) > 0:
+            head = "@" + " @".join(self.tags) + "\n" + head
         for description, line in zip(self.description.splitlines(), self.described_at.description_at):
             head += strings.rfill(u"  %s" % description, length, append=u"# %s:%d\n" % (filename, line))
 
@@ -612,11 +830,13 @@ class Feature(object):
     @classmethod
     def from_string(new_feature, string, with_file=None, language=None):
         """Creates a new feature from string"""
-        lines = strings.get_stripped_lines(string)
+        lines = strings.get_stripped_lines(string, ignore_lines_starting_with='#')
+        tags = []
         if not language:
             language = Language()
 
-        found = len(re.findall(r'%s:[ ]*\w+' % language.feature, string))
+        strings.consume_tags_lines(lines, tags)
+        found = len(re.findall(r'%s:[ ]*\w+' % language.feature, "\n".join(lines), re.U))
 
         if found > 1:
             raise LettuceSyntaxError(
@@ -643,7 +863,8 @@ class Feature(object):
                               remaining_lines=lines,
                               with_file=with_file,
                               original_string=string,
-                              language=language)
+                              language=language,
+                              tags=tags)
         return feature
 
     @classmethod
@@ -663,35 +884,36 @@ class Feature(object):
 
         joined = u"\n".join(lines[1:])
 
-        # replacing occurrencies of Scenario Outline, with just "Scenario"
-        scenario_prefix = u'%s:' % self.language.first_of_scenario
+        # replacing occurrences of Scenario Outline, with just "Scenario"
+        scenario_prefix = u'%s: ' % self.language.first_of_scenario
         regex = re.compile(u"%s:\s" % self.language.scenario_separator, re.U | re.I)
         joined = regex.sub(scenario_prefix, joined)
 
-        parts = strings.split_wisely(joined, scenario_prefix)
+        lines = string.split(joined, "\n")
 
-        description = u""
+        description_lines = strings.get_lines_till_next_scenario(lines, scenario_prefix)
+        description = "\n".join(s for s in description_lines if s.strip())
 
-        if not re.search("^" + scenario_prefix, joined):
-            description = parts[0]
-            parts.pop(0)
+        parts = strings.split_scenarios(lines, scenario_prefix)
 
         scenario_strings = [
-            u"%s: %s" % (self.language.first_of_scenario, s) for s in parts if s.strip()
+            u"%s" % (s) for s in parts if s.strip()
         ]
         kw = dict(
             original_string=original_string,
             with_file=with_file,
-            language=self.language
+            language=self.language,
+            tags=self.tags
         )
 
         scenarios = [Scenario.from_string(s, **kw) for s in scenario_strings]
 
         return scenarios, description
 
-    def run(self, scenarios=None, ignore_case=True):
+    def run(self, scenarios=None, run_controller=None, ignore_case=True):
         call_hook('before_each', 'feature', self)
         scenarios_ran = []
+        run_controller = run_controller or RunController()
 
         if isinstance(scenarios, (tuple, list)):
             if all(map(lambda x: isinstance(x, int), scenarios)):
@@ -703,7 +925,7 @@ class Feature(object):
             if scenarios_to_run and (index + 1) not in scenarios_to_run:
                 continue
 
-            scenarios_ran.extend(scenario.run(ignore_case))
+            scenarios_ran.extend(scenario.run(ignore_case, run_controller))
 
         call_hook('after_each', 'feature', self)
         return FeatureResult(self, *scenarios_ran)
@@ -721,7 +943,7 @@ class FeatureResult(object):
 class ScenarioResult(object):
     """Object that holds results of each step ran from within a scenario"""
     def __init__(self, scenario, steps_passed, steps_failed, steps_skipped,
-                 steps_undefined):
+                 steps_undefined, was_run):
 
         self.scenario = scenario
 
@@ -729,13 +951,18 @@ class ScenarioResult(object):
         self.steps_failed = steps_failed
         self.steps_skipped = steps_skipped
         self.steps_undefined = steps_undefined
+        self.was_run = was_run
 
         all_lists = [steps_passed + steps_skipped + steps_undefined + steps_failed]
         self.total_steps = sum(map(len, all_lists))
 
     @property
     def passed(self):
-        return self.total_steps is len(self.steps_passed)
+        return self.was_run and self.total_steps is len(self.steps_passed)
+
+    @property
+    def failed(self):
+        return len(self.steps_failed) > 0
 
 class TotalResult(object):
     def __init__(self, feature_results):
@@ -778,9 +1005,21 @@ class TotalResult(object):
         return len([result for result in self.feature_results if result.passed])
 
     @property
-    def scenarios_ran(self):
+    def scenarios_total(self):
         return len(self.scenario_results)
+
+    @property
+    def scenarios_ran(self):
+        return len([res for res in self.scenario_results if res.was_run])
+    
+    @property
+    def scenarios_not_run(self):
+        return len([result for result in self.scenario_results if not result.was_run])
 
     @property
     def scenarios_passed(self):
         return len([result for result in self.scenario_results if result.passed])
+
+    @property
+    def scenarios_failed(self):
+        return len([result for result in self.scenario_results if result.failed])

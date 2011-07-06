@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,21 @@ Scenario Outline: Add two numbers
       | 20      | 30      | add    | 50     |
       | 2       | 5       | add    | 7      |
       | 0       | 40      | add    | 40     |
+"""
+
+OUTLINED_SCENARIO_WITH_SUBSTITUTIONS_IN_TABLE = """
+Scenario Outline: Bad configuration should fail
+    Given I provide the following configuration:
+       | Parameter | Value |
+       |     a     |  <a>  |
+       |     b     |  <b>  |
+    When I run the program
+    Then it should fail hard-core
+
+Examples:
+    | a | b |
+    | 1 | 2 |
+    | 2 | 4 |
 """
 
 OUTLINED_FEATURE = """
@@ -89,6 +104,10 @@ OUTLINED_FEATURE_WITH_MANY = """
             | 2       | 5       | add    | 7      |
             | 0       | 40      | add    | 40     |
 
+        Examples:
+            | input_1 | input_2 | button | output |
+            | 5       | 7       | add    | 12     |
+
 """
 
 SCENARIO_FAILED = """
@@ -100,6 +119,108 @@ Scenario: Adding some students to my university database
     Then I see the 1st line of 'courses.txt' has 'Computer Science:5'
     And I see the 2nd line of 'courses.txt' has 'Nutrition:4'
 """
+
+OUTLINED_SCENARIO_WITH_COMMENTS_ON_EXAMPLES = """
+Scenario Outline: Add two numbers
+    Given I have entered <input_1> into the calculator
+    And I have entered <input_2> into the calculator
+    When I press <button>
+    Then the result should be <output> on the screen
+
+    Examples:
+      | input_1 | input_2 | button | output |
+      | 20      | 30      | add    | 50     |
+      #| 2       | 5       | add    | 7      |
+      | 0       | 40      | add    | 40     |
+    # end of the scenario
+"""
+
+OUTLINED_SCENARIO_WITH_MORE_THAN_ONE_EXAMPLES_BLOCK = """
+Scenario Outline: Add two numbers
+    Given I have entered <input_1> into the calculator
+    And I have entered <input_2> into the calculator
+    When I press <button>
+    Then the result should be <output> on the screen
+
+    Examples:
+      | input_1 | input_2 | button | output |
+      | 20      | 30      | add    | 50     |
+      | 2       | 5       | add    | 7      |
+      | 0       | 40      | add    | 40     |
+
+    Examples:
+      | input_1 | input_2 | button | output |
+      | 20      | 33      | add    | 53     |
+      | 12      | 40      | add    | 52     |
+"""
+
+COMMENTED_SCENARIO = """
+Scenario: Adding some students to my university database
+    Given I have the following courses in my university:
+       | Name               | Duration |
+       | Computer Science   | 5 years  |
+       | Nutrition          | 4 years  |
+    When I consolidate the database into 'courses.txt'
+    Then I see the 1st line of 'courses.txt' has 'Computer Science:5'
+    And I see the 2nd line of 'courses.txt' has 'Nutrition:4'
+
+# Scenario: Adding some students to my university database
+#     Given I have the following courses in my university:
+#        | Name               | Duration |
+#        | Computer Science   | 5 years  |
+#        | Nutrition          | 4 years  |
+#     When I consolidate the database into 'courses.txt'
+#     Then I see the 1st line of 'courses.txt' has 'Computer Science:5'
+#     And I see the 2nd line of 'courses.txt' has 'Nutrition:4'
+
+"""
+
+TAGGED_FEATURE_WITH_MANY = """
+    @outer-tag @outer2
+    Feature: Full-featured feature
+             feature description line 1
+             line 2
+        @something-tag
+        Scenario Outline: Do something
+            Given I have entered <input_1> into the <input_2>
+
+        Examples:
+            | input_1 | input_2 |
+            | ok      | fail    |
+            | fail    | ok      |
+
+        @something-else-tag
+        Scenario: Do something else
+          Given I am fine
+
+        Scenario: Worked!
+          Given it works
+          When I look for something
+          Then I find a multi-line string:
+          \"\"\"
+          what if I put a tag
+          @on-one
+          of these lines? 
+          \"\"\"
+
+        Scenario Outline: Add two numbers wisely
+            Given I have entered <input_1> into the calculator
+            And I have entered <input_2> into the calculator
+            When I press <button>
+            Then the result should be <output> on the screen
+
+        Examples:
+            | input_1 | input_2 | button | output |
+            | 20      | 30      | add    | 50     |
+            | 2       | 5       | add    | 7      |
+            | 0       | 40      | add    | 40     |
+
+        Examples:
+            | input_1 | input_2 | button | output |
+            | 5       | 7       | add    | 12     |
+
+"""
+
 
 from lettuce.core import Step
 from lettuce.core import Scenario
@@ -213,6 +334,25 @@ def test_scenario_sentences_can_be_solved():
         assert_equals(type(step), Step)
         assert_equals(step.sentence, expected_sentence)
 
+def test_scenario_tables_are_solved_against_outlines():
+    "Outline substitution should apply to tables within a scenario"
+    expected_hashes_per_step = [
+            # a = 1, b = 2
+            [{'Parameter': 'a', 'Value': '1'}, {'Parameter': 'b', 'Value': '2'}], # Given ...
+            [], # When I run the program
+            [], # Then I crash hard-core
+
+            # a = 2, b = 4
+            [{'Parameter': 'a', 'Value': '2'}, {'Parameter': 'b', 'Value': '4'}],
+            [],
+            []
+        ]
+    
+    scenario = Scenario.from_string(OUTLINED_SCENARIO_WITH_SUBSTITUTIONS_IN_TABLE)
+    for step, expected_hashes in zip(scenario.solved_steps, expected_hashes_per_step):
+        assert_equals(type(step), Step)
+        assert_equals(step.hashes, expected_hashes)
+
 def test_solved_steps_also_have_scenario_as_attribute():
     "Steps solved in scenario outlines also have scenario as attribute"
     scenario = Scenario.from_string(OUTLINED_SCENARIO)
@@ -286,6 +426,14 @@ def test_full_featured_feature():
                 'When I press add',
                 'Then the result should be 40 on the screen',
             ],
+        ),
+        (
+            {'button': 'add', 'input_1': '5', 'input_2': '7', 'output': '12'}, [
+                'Given I have entered 5 into the calculator',
+                'And I have entered 7 into the calculator',
+                'When I press add',
+                'Then the result should be 12 on the screen',
+            ],
         )
     )
     for ((got_examples, got_steps), (expected_examples, expected_steps)) in zip(scenario4.evaluated, expected_evaluated):
@@ -297,3 +445,53 @@ def test_scenario_with_table_and_no_step_fails():
     "A step table imediately after the scenario line, without step line fails"
 
     assert_raises(LettuceSyntaxError, Scenario.from_string, SCENARIO_FAILED)
+
+def test_scenario_ignore_commented_lines_from_examples():
+    "Comments on scenario example should be ignored"
+    scenario = Scenario.from_string(OUTLINED_SCENARIO_WITH_COMMENTS_ON_EXAMPLES)
+
+    assert_equals(
+        scenario.outlines,
+        [
+            {'input_1': '20', 'input_2': '30', 'button': 'add', 'output': '50'},
+            {'input_1': '0', 'input_2': '40', 'button': 'add', 'output': '40'},
+        ]
+    )
+
+def test_scenario_aggregate_all_examples_blocks():
+    "All scenario's examples block should be translated to outlines"
+    scenario = Scenario.from_string(OUTLINED_SCENARIO_WITH_MORE_THAN_ONE_EXAMPLES_BLOCK)
+
+    assert_equals(
+        scenario.outlines,
+        [
+            {'input_1': '20', 'input_2': '30', 'button': 'add', 'output': '50'},
+            {'input_1': '2', 'input_2': '5', 'button': 'add', 'output': '7'},
+            {'input_1': '0', 'input_2': '40', 'button': 'add', 'output': '40'},
+            {'input_1': '20', 'input_2': '33', 'button': 'add', 'output': '53'},
+            {'input_1': '12', 'input_2': '40', 'button': 'add', 'output': '52'},
+        ]
+    )
+
+def test_commented_scenarios():
+    "A scenario string that contains lines starting with '#' will be commented"
+    scenario = Scenario.from_string(COMMENTED_SCENARIO)
+    assert_equals(scenario.name, u'Adding some students to my university database')
+    assert_equals(len(scenario.steps), 4)
+
+def test_fully_tagged_feature():
+    "Check that tags are parsed correctly"
+    feature = Feature.from_string(TAGGED_FEATURE_WITH_MANY)
+    assert_equals(feature.description, u'feature description line 1\nline 2')
+    assert_equals(len(feature.scenarios), 4)
+    scenario1, scenario2, scenario3, scenario4 = feature.scenarios
+
+    assert_equals(scenario1.name, 'Do something')
+    assert_equals(scenario2.name, 'Do something else')
+    assert_equals(scenario3.name, 'Worked!')
+    assert_equals(scenario4.name, 'Add two numbers wisely')
+    # Check tags 
+    assert_equals(scenario1.tags, ["outer-tag", "outer2", "something-tag"])
+    assert_equals(scenario2.tags, ["outer-tag", "outer2", "something-else-tag"])
+    assert_equals(scenario3.tags, ["outer-tag", "outer2"])
+    assert_equals(scenario4.tags, ["outer-tag", "outer2"])

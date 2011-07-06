@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,16 +15,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-version = '0.1.14'
+version = '0.1.27'
 release = 'barium'
 
 import os
 import sys
+import traceback
 from datetime import datetime
 
 from lettuce import fs
 
-from lettuce.core import Feature, TotalResult
+from lettuce.core import Feature, TotalResult, RunController
 
 from lettuce.terrain import after
 from lettuce.terrain import before
@@ -34,8 +35,10 @@ from lettuce.decorators import step
 from lettuce.registry import call_hook
 from lettuce.registry import STEP_REGISTRY
 from lettuce.registry import CALLBACK_REGISTRY
+from lettuce.exceptions import StepLoadingError
+from lettuce.plugins import xunit_output
 
-from lettuce.exceptions import LettuceSyntaxError
+from lettuce import exceptions
 
 __all__ = ['after', 'before', 'step', 'world', 'STEP_REGISTRY', 'CALLBACK_REGISTRY', 'call_hook']
 
@@ -46,10 +49,11 @@ except Exception, e:
     if not "No module named terrain" in str(e):
         string = 'Lettuce has tried to load the conventional environment ' \
             'module "terrain"\nbut it has errors, check its contents and ' \
-            'try to run lettuce again.\n'
-        sys.stderr.write(string)
-        raise SystemExit(1)
+            'try to run lettuce again.\n\nOriginal traceback below:\n\n'
 
+        sys.stderr.write(string)
+        sys.stderr.write(exceptions.traceback.format_exc(e))
+        raise SystemExit(1)
 
 class Runner(object):
     """ Main lettuce's test runner
@@ -57,7 +61,9 @@ class Runner(object):
     Takes a base path as parameter (string), so that it can look for
     features and step definitions on there.
     """
-    def __init__(self, base_path, scenarios=None, verbosity=0):
+    def __init__(self, base_path, scenarios=None, verbosity=0,
+                 enable_xunit=False, xunit_filename=None,
+                 run_controller=None):
         """ lettuce.Runner will try to find a terrain.py file and
         import it from within `base_path`
         """
@@ -70,16 +76,24 @@ class Runner(object):
         sys.path.insert(0, base_path)
         self.loader = fs.FeatureLoader(base_path)
         self.verbosity = verbosity
+        self.run_controller = run_controller or RunController()
         self.scenarios = scenarios and map(int, scenarios.split(",")) or None
 
         sys.path.remove(base_path)
 
         if verbosity is 0:
             from lettuce.plugins import non_verbose as output
+        elif verbosity is 1:
+            from lettuce.plugins import dots as output
+        elif verbosity is 2:
+            from lettuce.plugins import scenario_names as output
         elif verbosity is 3:
             from lettuce.plugins import shell_output as output
         else:
             from lettuce.plugins import colored_shell_output as output
+
+        if enable_xunit:
+            xunit_output.enable(filename=xunit_filename)
 
         reload(output)
 
@@ -90,7 +104,11 @@ class Runner(object):
         features under `base_path` specified on constructor
         """
         started_at = datetime.now()
-        self.loader.find_and_load_step_definitions()
+        try:
+            self.loader.find_and_load_step_definitions()
+        except StepLoadingError, e:
+            print "Error loading step definitions:\n", e
+            return
 
         call_hook('before', 'all')
 
@@ -108,9 +126,14 @@ class Runner(object):
         try:
             for filename in features_files:
                 feature = Feature.from_file(filename)
-                results.append(feature.run(self.scenarios))
-        except LettuceSyntaxError, e:
+                results.append(feature.run(self.scenarios, self.run_controller))
+        except exceptions.LettuceSyntaxError, e:
             sys.stderr.write(e.msg)
+            failed = True
+        except:
+            e = sys.exc_info()[1]
+            print "Died with "+str(e)
+            traceback.print_exc()
             failed = True
 
         finally:

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,12 +18,12 @@ import os
 import lettuce
 
 from StringIO import StringIO
-from os.path import dirname, abspath, join
+from os.path import dirname, join, abspath
 from nose.tools import assert_equals, with_setup, assert_raises
 from lettuce.fs import FeatureLoader
-from lettuce.core import Feature, fs, StepDefinition
+from lettuce.core import Feature, fs, StepDefinition, TagChecker
 from lettuce.terrain import world
-from lettuce import Runner
+from lettuce import Runner, step, RunController
 
 from tests.asserts import assert_lines
 from tests.asserts import assert_stderr
@@ -31,12 +31,14 @@ from tests.asserts import prepare_stderr
 from tests.asserts import prepare_stdout
 from tests.asserts import assert_stderr_lines
 from tests.asserts import assert_stdout_lines
+from tests.asserts import assert_stderr_lines_with_traceback
 from tests.asserts import assert_stdout_lines_with_traceback
 
 current_dir = abspath(dirname(__file__))
 lettuce_dir = abspath(dirname(lettuce.__file__))
 ojoin = lambda *x: join(current_dir, 'output_features', *x)
 sjoin = lambda *x: join(current_dir, 'syntax_features', *x)
+tjoin = lambda *x: join(current_dir, 'tag_features', *x)
 lettuce_path = lambda *x: fs.relpath(join(lettuce_dir, *x))
 
 call_line = StepDefinition.__call__.im_func.func_code.co_firstlineno + 5
@@ -46,6 +48,9 @@ def feature_name(name):
 
 def syntax_feature_name(name):
     return sjoin(name, "%s.feature" % name)
+
+def tag_feature_name(name):
+    return tjoin(name, "%s.feature" % name)
 
 @with_setup(prepare_stderr)
 def test_try_to_import_terrain():
@@ -59,10 +64,23 @@ def test_try_to_import_terrain():
         reload(lettuce)
         raise AssertionError('The runner should raise ImportError !')
     except SystemExit:
-        assert_stderr(
+        assert_stderr_lines_with_traceback(
             'Lettuce has tried to load the conventional environment module ' \
-            '"terrain"\n'
-            'but it has errors, check its contents and try to run lettuce again.\n'
+            '"terrain"\nbut it has errors, check its contents and ' \
+            'try to run lettuce again.\n\nOriginal traceback below:\n\n' \
+            "Traceback (most recent call last):\n"
+            '  File "%(lettuce_core_file)s", line 44, in <module>\n'
+            '    terrain = fs.FileSystem._import("terrain")\n' \
+            '  File "%(lettuce_fs_file)s", line 63, in _import\n' \
+            '    module = imp.load_module(name, fp, pathname, description)\n' \
+            '  File "%(terrain_file)s", line 18\n' \
+            '    it is here just to cause a syntax error\n' \
+            "                  ^\n" \
+            'SyntaxError: invalid syntax\n' % {
+                'lettuce_core_file': abspath(join(lettuce_dir, '__init__.py')),
+                'lettuce_fs_file': abspath(join(lettuce_dir, 'fs.py')),
+                'terrain_file': abspath(lettuce_path('..', 'tests', 'functional', 'sandbox', 'terrain.py')),
+            }
         )
 
     finally:
@@ -151,7 +169,6 @@ def test_output_with_success_colorless():
         "\n"
         "  Scenario: Do nothing                   # tests/functional/output_features/runner_features/first.feature:6\n"
         "    Given I do nothing                   # tests/functional/output_features/runner_features/dumb_steps.py:6\n"
-        "\033[A    Given I do nothing                   # tests/functional/output_features/runner_features/dumb_steps.py:6\n"
         "\n"
         "1 feature (1 passed)\n"
         "1 scenario (1 passed)\n"
@@ -174,11 +191,9 @@ def test_output_with_success_colorless():
         "\n"
         "  Scenario: Do nothing                   # tests/functional/output_features/many_successful_scenarios/first.feature:6\n"
         "    Given I do nothing                   # tests/functional/output_features/many_successful_scenarios/dumb_steps.py:6\n"
-        "\033[A    Given I do nothing                   # tests/functional/output_features/many_successful_scenarios/dumb_steps.py:6\n"
         "\n"
         "  Scenario: Do nothing (again)           # tests/functional/output_features/many_successful_scenarios/first.feature:9\n"
         "    Given I do nothing (again)           # tests/functional/output_features/many_successful_scenarios/dumb_steps.py:6\n"
-        "\033[A    Given I do nothing (again)           # tests/functional/output_features/many_successful_scenarios/dumb_steps.py:6\n"
         "\n"
         "1 feature (1 passed)\n"
         "2 scenarios (2 passed)\n"
@@ -209,7 +224,7 @@ def test_output_with_success_colorful():
     )
 
 @with_setup(prepare_stdout)
-def test_output_with_success_colorful():
+def test_output_with_success_colorful_newline():
     "A feature with two scenarios should separate the two scenarios with a new line (in color mode)."
 
     runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'many_successful_scenarios'), verbosity=4)
@@ -229,7 +244,7 @@ def test_output_with_success_colorful():
         "\033[1;37m  Scenario: Do nothing (again)           \033[1;30m# tests/functional/output_features/many_successful_scenarios/first.feature:9\033[0m\n" \
         "\033[1;30m    Given I do nothing (again)           \033[1;30m# tests/functional/output_features/many_successful_scenarios/dumb_steps.py:6\033[0m\n" \
         "\033[A\033[1;32m    Given I do nothing (again)           \033[1;30m# tests/functional/output_features/many_successful_scenarios/dumb_steps.py:6\033[0m\n" \
-		"\n" \
+        "\n" \
         "\033[1;37m1 feature (\033[1;32m1 passed\033[1;37m)\033[0m\n" \
         "\033[1;37m2 scenarios (\033[1;32m2 passed\033[1;37m)\033[0m\n" \
         "\033[1;37m2 steps (\033[1;32m2 passed\033[1;37m)\033[0m\n"
@@ -250,18 +265,14 @@ def test_output_with_success_colorless_many_features():
         "\n"
         "  Scenario: Do nothing                       # tests/functional/output_features/many_successful_features/one.feature:6\n"
         "    Given I do nothing                       # tests/functional/output_features/many_successful_features/dumb_steps.py:6\n"
-        "\033[A    Given I do nothing                       # tests/functional/output_features/many_successful_features/dumb_steps.py:6\n"
         "    Then I see that the test passes          # tests/functional/output_features/many_successful_features/dumb_steps.py:8\n"
-        "\033[A    Then I see that the test passes          # tests/functional/output_features/many_successful_features/dumb_steps.py:8\n"
         "\n"
         "Feature: Second feature, of many    # tests/functional/output_features/many_successful_features/two.feature:1\n"
         "  I just want to see it green :)    # tests/functional/output_features/many_successful_features/two.feature:2\n"
         "\n"
         "  Scenario: Do nothing              # tests/functional/output_features/many_successful_features/two.feature:4\n"
         "    Given I do nothing              # tests/functional/output_features/many_successful_features/dumb_steps.py:6\n"
-        "\033[A    Given I do nothing              # tests/functional/output_features/many_successful_features/dumb_steps.py:6\n"
         "    Then I see that the test passes # tests/functional/output_features/many_successful_features/dumb_steps.py:8\n"
-        "\033[A    Then I see that the test passes # tests/functional/output_features/many_successful_features/dumb_steps.py:8\n"
         "\n"
         "2 features (2 passed)\n"
         "2 scenarios (2 passed)\n"
@@ -329,6 +340,19 @@ def test_output_when_could_not_find_features_colorless():
     )
 
 @with_setup(prepare_stdout)
+def test_output_when_could_not_find_features_verbosity_level_2():
+    "Testing the colorful output of many successful features colorless"
+
+    path = fs.relpath(join(abspath(dirname(__file__)), 'unexistent-folder'))
+    runner = Runner(path, verbosity=2)
+    runner.run()
+
+    assert_stdout_lines(
+        'Oops!\n'
+        'could not find features at ./%s\n' % path
+    )
+
+@with_setup(prepare_stdout)
 def test_output_with_success_colorless_with_table():
     "Testing the colorless output of success with table"
 
@@ -341,23 +365,13 @@ def test_output_with_success_colorless_with_table():
         '\n'
         '  Scenario: Add two numbers      # tests/functional/output_features/success_table/success_table.feature:2\n'
         '    Given I have 0 bucks         # tests/functional/output_features/success_table/success_table_steps.py:28\n'
-        '\033[A    Given I have 0 bucks         # tests/functional/output_features/success_table/success_table_steps.py:28\n'
         '    And that I have these items: # tests/functional/output_features/success_table/success_table_steps.py:32\n'
         '      | name    | price  |\n'
         '      | Porsche | 200000 |\n'
         '      | Ferrari | 400000 |\n'
-        '\033[A\033[A\033[A\033[A    And that I have these items: # tests/functional/output_features/success_table/success_table_steps.py:32\n'
-        '      | name    | price  |\n'
-        '      | Porsche | 200000 |\n'
-        '      | Ferrari | 400000 |\n'
         '    When I sell the "Ferrari"    # tests/functional/output_features/success_table/success_table_steps.py:42\n'
-        '\033[A    When I sell the "Ferrari"    # tests/functional/output_features/success_table/success_table_steps.py:42\n'
         '    Then I have 400000 bucks     # tests/functional/output_features/success_table/success_table_steps.py:28\n'
-        '\033[A    Then I have 400000 bucks     # tests/functional/output_features/success_table/success_table_steps.py:28\n'
         '    And my garage contains:      # tests/functional/output_features/success_table/success_table_steps.py:47\n'
-        '      | name    | price  |\n'
-        '      | Porsche | 200000 |\n'
-        '\033[A\033[A\033[A    And my garage contains:      # tests/functional/output_features/success_table/success_table_steps.py:47\n'
         '      | name    | price  |\n'
         '      | Porsche | 200000 |\n'
         '\n'
@@ -417,9 +431,7 @@ def test_output_with_failed_colorless_with_table():
         "\n"
         "  Scenario: See it fail                       # tests/functional/output_features/failed_table/failed_table.feature:2\n"
         "    Given I have a dumb step that passes      # tests/functional/output_features/failed_table/failed_table_steps.py:20\n"
-        "\033[A    Given I have a dumb step that passes      # tests/functional/output_features/failed_table/failed_table_steps.py:20\n"
         "    And this one fails                        # tests/functional/output_features/failed_table/failed_table_steps.py:24\n"
-        "\033[A    And this one fails                        # tests/functional/output_features/failed_table/failed_table_steps.py:24\n"
         "    Traceback (most recent call last):\n"
         '      File "%(lettuce_core_file)s", line %(call_line)d, in __call__\n'
         "        ret = self.function(self.step, *args, **kw)\n"
@@ -427,9 +439,7 @@ def test_output_with_failed_colorless_with_table():
         "        assert False\n"
         "    AssertionError\n"
         "    Then this one will be skipped             # tests/functional/output_features/failed_table/failed_table_steps.py:28\n"
-        "\033[A    Then this one will be skipped             # tests/functional/output_features/failed_table/failed_table_steps.py:28\n"
         "    And this one will be skipped              # tests/functional/output_features/failed_table/failed_table_steps.py:28\n"
-        "\033[A    And this one will be skipped              # tests/functional/output_features/failed_table/failed_table_steps.py:28\n"
         "    And this one does not even has definition # tests/functional/output_features/failed_table/failed_table.feature:12 (undefined)\n"
         "\n"
         "1 feature (0 passed)\n"
@@ -499,7 +509,7 @@ def test_output_with_failed_colorful_with_table():
 
 @with_setup(prepare_stdout)
 def test_output_with_successful_outline_colorless():
-    "Testing the colorless output of a scenario outline"
+    "With colorless output, a successful outline scenario should print beautifully."
 
     runner = Runner(feature_name('success_outline'), verbosity=3)
     runner.run()
@@ -534,7 +544,7 @@ def test_output_with_successful_outline_colorless():
 
 @with_setup(prepare_stdout)
 def test_output_with_successful_outline_colorful():
-    "Testing the colorful output of a scenario outline"
+    "With colored output, a successful outline scenario should print beautifully."
 
     runner = Runner(feature_name('success_outline'), verbosity=4)
     runner.run()
@@ -569,7 +579,7 @@ def test_output_with_successful_outline_colorful():
 
 @with_setup(prepare_stdout)
 def test_output_with_failful_outline_colorless():
-    "Testing the colorless output of a scenario outline"
+    "With colorless output, an unsuccessful outline scenario should print beautifully."
 
     runner = Runner(feature_name('fail_outline'), verbosity=3)
     runner.run()
@@ -614,7 +624,7 @@ def test_output_with_failful_outline_colorless():
 
 @with_setup(prepare_stdout)
 def test_output_with_failful_outline_colorful():
-    "Testing the colorful output of a scenario outline"
+    "With colored output, an unsuccessful outline scenario should print beautifully."
 
     runner = Runner(feature_name('fail_outline'), verbosity=4)
     runner.run()
@@ -865,3 +875,214 @@ def test_output_snippets_with_normalized_unicode_names():
         u"def entao_eu_fico_felizao(step):\n"
         u"    assert False, 'This step must be implemented'\n"
     )
+
+@with_setup(prepare_stdout)
+def test_output_level_2_success():
+    'Output with verbosity 2 must show only the scenario names, followed by "... OK" in case of success'
+
+    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'many_successful_scenarios'), verbosity=2)
+    runner.run()
+
+    assert_stdout_lines(
+        "Do nothing ... OK\n"
+        "Do nothing (again) ... OK\n"
+        "\n"
+        "1 feature (1 passed)\n"
+        "2 scenarios (2 passed)\n"
+        "2 steps (2 passed)\n"
+    )
+
+@with_setup(prepare_stdout)
+def test_output_level_2_fail():
+    'Output with verbosity 2 must show only the scenario names, followed by "... FAILED" in case of fail'
+
+    runner = Runner(feature_name('failed_table'), verbosity=2)
+    runner.run()
+
+    assert_stdout_lines_with_traceback(
+        "See it fail ... FAILED\n"
+        "\n"
+        "Traceback (most recent call last):\n"
+        '  File "%(lettuce_core_file)s", line %(call_line)d, in __call__\n'
+        "    ret = self.function(self.step, *args, **kw)\n"
+        '  File "%(step_file)s", line 25, in tof\n'
+        "    assert False\n"
+        "AssertionError\n"
+        "\n"
+        "1 feature (0 passed)\n"
+        "1 scenario (0 passed)\n"
+        "5 steps (1 failed, 2 skipped, 1 undefined, 1 passed)\n" % {
+            'lettuce_core_file': lettuce_path('core.py'),
+            'step_file': abspath(lettuce_path('..', 'tests', 'functional', 'output_features', 'failed_table', 'failed_table_steps.py')),
+            'call_line':call_line,
+        }
+    )
+
+@with_setup(prepare_stdout)
+def test_output_level_2_error():
+    'Output with verbosity 2 must show only the scenario names, followed by "... ERROR" in case of fail'
+
+    runner = Runner(feature_name('error_traceback'), verbosity=2)
+    runner.run()
+
+    assert_stdout_lines_with_traceback(
+        "It should pass ... OK\n"
+        "It should raise an exception different of AssertionError ... ERROR\n"
+        "\n"
+        "Traceback (most recent call last):\n"
+        '  File "%(lettuce_core_file)s", line %(call_line)d, in __call__\n'
+        "    ret = self.function(self.step, *args, **kw)\n"
+        '  File "%(step_file)s", line 10, in given_my_step_that_blows_a_exception\n'
+        "    raise RuntimeError\n"
+        "RuntimeError\n"
+        "\n"
+        "1 feature (0 passed)\n"
+        "2 scenarios (1 passed)\n"
+        "2 steps (1 failed, 1 passed)\n" % {
+            'lettuce_core_file': lettuce_path('core.py'),
+            'step_file': abspath(lettuce_path('..', 'tests', 'functional', 'output_features', 'error_traceback', 'error_traceback_steps.py')),
+            'call_line':call_line,
+        }
+    )
+
+@with_setup(prepare_stdout)
+def test_output_level_1_success():
+    'Output with verbosity 2 must show only the scenario names, followed by "... OK" in case of success'
+
+    runner = Runner(join(abspath(dirname(__file__)), 'output_features', 'many_successful_scenarios'), verbosity=1)
+    runner.run()
+
+    assert_stdout_lines(
+        ".."
+        "\n"
+        "1 feature (1 passed)\n"
+        "2 scenarios (2 passed)\n"
+        "2 steps (2 passed)\n"
+    )
+
+@with_setup(prepare_stdout)
+def test_output_level_1_fail():
+    'Output with verbosity 2 must show only the scenario names, followed by "... FAILED" in case of fail'
+
+    runner = Runner(feature_name('failed_table'), verbosity=1)
+    runner.run()
+
+    assert_stdout_lines_with_traceback(
+        ".F...\n"
+        "\n"
+        "Traceback (most recent call last):\n"
+        '  File "%(lettuce_core_file)s", line %(call_line)d, in __call__\n'
+        "    ret = self.function(self.step, *args, **kw)\n"
+        '  File "%(step_file)s", line 25, in tof\n'
+        "    assert False\n"
+        "AssertionError\n"
+        "\n"
+        "1 feature (0 passed)\n"
+        "1 scenario (0 passed)\n"
+        "5 steps (1 failed, 2 skipped, 1 undefined, 1 passed)\n" % {
+            'lettuce_core_file': lettuce_path('core.py'),
+            'step_file': abspath(lettuce_path('..', 'tests', 'functional', 'output_features', 'failed_table', 'failed_table_steps.py')),
+            'call_line':call_line,
+        }
+    )
+
+@with_setup(prepare_stdout)
+def test_output_level_1_error():
+    'Output with verbosity 2 must show only the scenario names, followed by "... ERROR" in case of fail'
+
+    runner = Runner(feature_name('error_traceback'), verbosity=1)
+    runner.run()
+
+    assert_stdout_lines_with_traceback(
+        ".E\n"
+        "\n"
+        "Traceback (most recent call last):\n"
+        '  File "%(lettuce_core_file)s", line %(call_line)d, in __call__\n'
+        "    ret = self.function(self.step, *args, **kw)\n"
+        '  File "%(step_file)s", line 10, in given_my_step_that_blows_a_exception\n'
+        "    raise RuntimeError\n"
+        "RuntimeError\n"
+        "\n"
+        "1 feature (0 passed)\n"
+        "2 scenarios (1 passed)\n"
+        "2 steps (1 failed, 1 passed)\n" % {
+            'lettuce_core_file': lettuce_path('core.py'),
+            'step_file': abspath(lettuce_path('..', 'tests', 'functional', 'output_features', 'error_traceback', 'error_traceback_steps.py')),
+            'call_line':call_line,
+        }
+    )
+
+@with_setup(prepare_stdout)
+def test_commented_scenario():
+    'Test one commented scenario'
+
+    runner = Runner(feature_name('commented_feature'), verbosity=1)
+    runner.run()
+
+    assert_stdout_lines(
+        "."
+        "\n"
+        "1 feature (1 passed)\n"
+        "1 scenario (1 passed)\n"
+        "1 step (1 passed)\n"
+    )
+
+
+#with_setup(prepare_stderr)
+@with_setup(prepare_stdout)
+def test_blank_step_hash_value():
+    "syntax checking: Blank in step hash column = empty string"
+
+    from lettuce import step
+
+    @step('ignore step')
+    def append_2_more(step):
+        pass
+
+    @step('string length calc')
+    def append_2_more(step):
+        for hash in step.hashes:
+            if len(hash["string"])+len(hash["string2"]) != int(hash["length"]):
+                raise AssertionError("fail")
+
+    filename = syntax_feature_name('blank_values_in_hash')
+    runner = Runner(filename, verbosity=1)
+    runner.run()
+
+    assert_stdout_lines(
+        "...."
+        "\n"
+        "1 feature (1 passed)\n"
+        "1 scenario (1 passed)\n"
+        "4 steps (4 passed)\n"
+    )
+
+def test_run_only_features_tagged():
+    "Test that only features (and their scenarios) are run if tags match"
+
+    world.colours = []
+    
+    @step('Running "(.*)" scenario')
+    def keep_colours(step, colour):
+        world.colours.append(colour)
+
+    filename = tag_feature_name('red_feature')
+    # Should run cos we did not specify any tags
+    run_controller = RunController()
+    runner = Runner(filename, verbosity=0, run_controller=run_controller)
+    runner.run()
+    assert_equals(world.colours, ["red"])
+    world.colours = []
+    # Should run cos tag matches
+    run_controller = RunController()
+    run_controller.add(TagChecker(["red"]))
+    runner = Runner(filename, verbosity=0, run_controller=run_controller)
+    runner.run()
+    assert_equals(world.colours, ["red"])
+    world.colours = []
+    # Should not run cos tag doesn't match
+    run_controller = RunController()
+    run_controller.add(TagChecker(["blue"]))
+    runner = Runner(filename, verbosity=0, run_controller=run_controller)
+    runner.run()
+    assert_equals(world.colours, [])

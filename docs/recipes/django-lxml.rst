@@ -3,10 +3,10 @@
 Web development fun with Lettuce and Django
 ===========================================
 
-Django_ is a awesome web framework, very mature, aims on simplicity
-and the best of all: it's funny to use it.
+Django_ is a awesome web framework, very mature, aims for simplicity
+and the best of all: it's fun to use it.
 
-To make it even funnier, lettuce has builtin support to Django.
+To make it even more fun, lettuce has builtin support to Django.
 
 Getting started
 ~~~~~~~~~~~~~~~
@@ -151,6 +151,14 @@ background, it tries to bind the HTTP server at localhost:8000 but if
 the port is busy, it keeps trying to run in higher ports: 8001, 8002
 and so on until it reaches the max port number 65535
 
+.. note::
+
+   you can override the default starting port from "8000" to any other
+   port you want.
+
+   to do so, refer to "running the HTTP server in other port than
+   8000" below.
+
 So that you can use browser-based tools such as those listed above to
 access Django.
 
@@ -261,6 +269,26 @@ example:
    python manage.py harvest --no-server
    python manage.py harvest -S
 
+running the HTTP server in other port than 8000
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+if you face the problem of having lettuce running on port 8000, you
+can change that behaviour.
+
+Before running the server, lettuce will try to read the setting `LETTUCE_SERVER_PORT` which **must** be a **integer**
+
+example:
+
+.. highlight:: python
+
+::
+
+   LETTUCE_SERVER_PORT = 7000
+
+This can be really useful if 7000 is your default development port,
+for example.
+
+
 running the HTTP server with settings.DEBUG=True
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -310,6 +338,10 @@ For example, the command below would run ONLY the tests within the apps `myapp` 
 ::
 
    python manage.py harvest --apps=myapp,foobar
+
+   # or
+
+   python manage.py harvest --a  myapp,foobar
 
 you can also specify it at `settings.py` so that you won't need to type the same command-line parameters all the time:
 

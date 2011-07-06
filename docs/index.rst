@@ -84,8 +84,7 @@ hands on!
 
 Is this your first experience with Lettuce ?!?
 
-So, why don't you go straight to the :ref:`quick start tutorial
-<tutorial-simple>` ?!
+So, why don't you go straight to the :ref:`quick start tutorial <tutorial-simple>` ?!
 
 introduction
 ============
@@ -105,7 +104,9 @@ walkthrough
 
     * :ref:`write your first feature <tutorial-simple>`
     * :ref:`handling data with tables <tutorial-tables>`
+    * :ref:`multi-line strings <tutorial-multiline>`
     * :ref:`don't repeat yourself, meet scenario outlines <tutorial-scenario-outlines>`
+    * :ref:`clean up your spec definitions, calling one step from another <tutorial-steps-from-step-definitions>`
 
 integrate!
 ==========
@@ -117,6 +118,7 @@ furthermore
 
 **reference and concepts**
 
+    * :ref:`the command line <reference-cli>`, how to run lettuce with different verbosity levels, and other cli options
     * :ref:`features, scenarios and steps <reference-features>`, diving into lettuce's core
     * :ref:`terrain, world and hooks <reference-terrain>`, stuff about setting up a environment for lettuce
     * :ref:`language support <reference-languages>`

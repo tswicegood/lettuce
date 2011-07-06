@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,3 +44,7 @@ class LettuceSyntaxError(SyntaxError):
         self.filename = filename
         self.msg = "Syntax error at: %s\n%s\n" % (filename, string)
 
+
+class StepLoadingError(Exception):
+    """Raised when a step cannot be loaded."""
+    pass

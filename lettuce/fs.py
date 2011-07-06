@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,7 +37,16 @@ class FeatureLoader(object):
             root = FileSystem.dirname(filename)
             sys.path.insert(0, root)
             to_load = FileSystem.filename(filename, with_extension=False)
-            module = __import__(to_load)
+            try:
+                module = __import__(to_load)
+            except ValueError, e:
+                import traceback
+                err_msg = traceback.format_exc(e)
+                if 'empty module name' in err_msg.lower():
+                    continue
+                else:
+                    raise e
+
             reload(module) # always take fresh meat :)
             sys.path.remove(root)
 

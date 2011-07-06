@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -169,7 +169,7 @@ class ThreadedServer(threading.Thread):
         if 'django.contrib.admin' in settings.INSTALLED_APPS:
             admin_media_path = ''
             handler = AdminMediaHandler(handler, admin_media_path)
-            print "Preparing to server django's admin site static files..."
+            print "Preparing to serve django's admin site static files..."
 
         httpd.set_app(handler)
 
@@ -186,7 +186,8 @@ class Server(object):
     that lettuce can be used with selenium, webdriver, windmill or any
     browser tool"""
 
-    def __init__(self, address='0.0.0.0', port=8000):
+    def __init__(self, address='0.0.0.0', port=None):
+        port = int(port or getattr(settings, 'LETTUCE_SERVER_PORT', 8000))
         self.address = unicode(address)
         self._actual_server = ThreadedServer(self.address, port)
 

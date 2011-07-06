@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,12 +38,11 @@ def prepare_stderr():
 def assert_lines(original, expected):
     original = original.decode('utf-8') if isinstance(original, basestring) else original
     assert_lines_unicode(original, expected)
-    
+
 def assert_lines_unicode(original, expected):
     if original != expected:
         diff = ''.join(list(Differ().compare(expected.splitlines(1), original.splitlines(1))))
-        raise AssertionError, 'Output differed as follows:\n' + diff + "\nOutput was:\n" + original
-    
+        raise AssertionError, 'Output differed as follows:\n' + diff + "\nOutput was:\n" + original +"\nExpected was:\n"+expected
     assert_equals(len(expected), len(original), 'Output appears equal, but of different lengths.')
 
 def assert_lines_with_traceback(one, other):
@@ -51,7 +50,7 @@ def assert_lines_with_traceback(one, other):
     lines_other = other.splitlines()
     regex = re.compile('File "([^"]+)", line \d+, in.*')
 
-    error = '%r should be in %r'
+    error = '%r should be in traceback line %r.\nFull output was:\n' + one
     for line1, line2 in zip(lines_one, lines_other):
         if regex.search(line1) and regex.search(line2):
             found = regex.search(line2)
@@ -87,3 +86,7 @@ def assert_stderr_lines(other):
 
 def assert_stdout_lines_with_traceback(other):
     assert_lines_with_traceback(sys.stdout.getvalue(), other)
+
+def assert_stderr_lines_with_traceback(other):
+    assert_lines_with_traceback(sys.stderr.getvalue(), other)
+

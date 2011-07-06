@@ -3,10 +3,10 @@
 handling data with tables
 =========================
 
-Let us put that you are writting a MVC application. Along the tests
-you will stumble in a kind of situation in which there is a few models
-that must be added to the database. Maybe you will also need to check
-the new state of those.
+Lets imagine writing a MVC application. While writing the tests
+you will stumble in to a situation where there is a few models
+that must be added to the database, maybe you will also need to check
+the new state of those models.
 
 It means that as you write tests with lettuce, it can be very useful
 to handle data within steps.
@@ -19,7 +19,7 @@ Step tables are here for you
 
    Feature: bill students alphabetically
      In order to bill students properly
-     As a finantial specialist
+     As a financial specialist
      I want to bill those which name starts with some letter
 
      Scenario: Bill students which name starts with "G"
@@ -43,7 +43,7 @@ Step tables are here for you
 
 In the example above there are 4 steps, in which 3 contains tables.
 
-Let us pretend that we are using Django_ and write a step definition
+Now let us imagine that we're using Django_ and write a step definition
 that uses the table.
 
 .. highlight:: python
@@ -58,6 +58,24 @@ that uses the table.
           for student_dict in step.hashes:
               person = Student(**student_dict)
               person.save()
+
+What about handy functions for getting the first or the last row of
+the tables ?!
+
+.. highlight:: python
+
+::
+
+      from lettuce import step
+      from school.models import Student
+
+      @step('I have the following students in my database:')
+      def students_in_database(step):
+          person1 = Student(**step.hashes.first)
+          person2 = Student(**step.hashes.last)
+
+          person1.save()
+          person2.save()
 
 
 Easy, huh?!

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,8 +35,8 @@ class Command(BaseCommand):
 
     option_list = BaseCommand.option_list[1:] + (
         make_option('-v', '--verbosity', action='store', dest='verbosity', default='4',
-            type='choice', choices=['0', '3', '4'],
-            help='Verbosity level; 0=no output, 3=colorless output, 4=normal output (colorful)'),
+            type='choice', choices=map(str, range(5)),
+            help='Verbosity level; 0=no output, 1=only dots, 2=only scenario names, 3=colorless output, 4=normal output (colorful)'),
 
         make_option('-a', '--apps', action='store', dest='apps', default='',
             help='Run ONLY the django apps that are listed here. Comma separated'),
@@ -52,6 +52,12 @@ class Command(BaseCommand):
 
         make_option('-s', '--scenarios', action='store', dest='scenarios', default=None,
             help='Comma separated list of scenarios to run'),
+
+        make_option('--with-xunit', action='store_true', dest='enable_xunit', default=False,
+            help='Output JUnit XML test results to a file'),
+
+        make_option('--xunit-file', action='store', dest='xunit_file', default=None,
+            help='Write JUnit XML to this file. Defaults to lettucetests.xml'),
     )
     def stopserver(self, failed=False):
         raise SystemExit(int(failed))
@@ -99,7 +105,9 @@ class Command(BaseCommand):
                 if app_module is not None:
                     registry.call_hook('before_each', 'app', app_module)
 
-                runner = Runner(path, options.get('scenarios'), verbosity)
+                runner = Runner(path, options.get('scenarios'), verbosity,
+                                enable_xunit=options.get('enable_xunit'),
+                                xunit_filename=options.get('xunit_file'))
                 result = runner.run()
                 if app_module is not None:
                     registry.call_hook('after_each', 'app', app_module, result)

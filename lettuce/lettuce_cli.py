@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,24 @@ def main(args=sys.argv[1:]):
                       default=None,
                       help='Comma separated list of scenarios to run')
 
+    parser.add_option("--with-xunit",
+                      dest="enable_xunit",
+                      action="store_true",
+                      default=False,
+                      help='Output JUnit XML test results to a file')
+
+    parser.add_option("--xunit-file",
+                      dest="xunit_file",
+                      default=None,
+                      type="string",
+                      help='Write JUnit XML to this file. Defaults to '
+                      'lettucetests.xml')
+
+    parser.add_option("--tags",
+                      action="append",
+                      dest="tags_to_run",
+                      default=[],
+                      help='Comma separated list of tags, run if any found, multiple uses of this argument mean logical AND')
 
     options, args = parser.parse_args()
     if args:
@@ -48,7 +66,15 @@ def main(args=sys.argv[1:]):
     except ValueError:
         pass
 
-    runner = lettuce.Runner(base_path, scenarios=options.scenarios, verbosity=options.verbosity)
+    run_controller = lettuce.RunController()
+    tag_checker = lettuce.core.TagChecker(options.tags_to_run)
+    run_controller.add(tag_checker)
+
+    runner = lettuce.Runner(base_path, scenarios=options.scenarios,
+                            verbosity=options.verbosity,
+                            enable_xunit=options.enable_xunit,
+                            xunit_filename=options.xunit_file,
+                            run_controller = run_controller)
 
     result = runner.run()
     if not result or result.steps != result.steps_passed:

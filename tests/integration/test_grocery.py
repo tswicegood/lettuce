@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,9 +26,10 @@ def test_django_admin_media_serving():
     FileSystem.pushd(current_directory, "django", "grocery")
 
     status, out = commands.getstatusoutput("python manage.py harvest --verbosity=3 ./features/")
-    assert_equals(status, 0)
+    assert_equals(status, 0, out)
     FileSystem.popd()
 
     lines = out.splitlines()
-    assert_equals(lines[0], u"Preparing to server django's admin site static files...")
-    assert_equals(lines[1], u"Django's builtin server is running at 0.0.0.0:8000")
+
+    assert u"Preparing to serve django's admin site static files..." in lines
+    assert u"Django's builtin server is running at 0.0.0.0:7000" in lines

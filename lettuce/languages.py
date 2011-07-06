@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -60,5 +60,41 @@ LANGUAGES = {
         'scenario': u'Escenario',
         'scenario_outline': u'Esquema de Escenario',
         'scenario_separator': u'(Esquema de Escenario|Escenario)',
+    },
+    'hu': {
+        'examples': u'Példák',
+        'feature': u'Jellemző',
+        'name': u'Hungarian',
+        'native': u'Magyar',
+        'scenario': u'Forgatókönyv',
+        'scenario_outline': u'Forgatókönyv vázlat',
+        'scenario_separator': u'(Forgatókönyv|Forgatókönyv vázlat)',
+    },
+    'fr': {
+        'examples': u'Exemples|Scénarios',
+        'feature': u'Fonctionnalité|Fonction',
+        'name': u'French',
+        'native': u'Français',
+        'scenario': u'Scénario',
+        'scenario_outline': u'Plan de Scénario|Plan du Scénario',
+        'scenario_separator': u'(Plan de Scénario|Plan du Scénario|Scénario)',
+   },
+    'de': {
+        'examples': u'Beispiele|Szenarios',
+        'feature': u'Funktionalität|Funktion',
+        'name': u'German',
+        'native': u'Deutsch',
+        'scenario': u'Szenario',
+        'scenario_outline': u'Szenario-Zusammenfassung|Zusammenfassung',
+        'scenario_separator': u'(Szenario-Zusammenfassung|Zusammenfassung)',
+   },
+    'ja': {
+        'examples': u'例',
+        'feature': u'フィーチャ',
+        'name': u'Japanese',
+        'native': u'日本語',
+        'scenario': u'シナリオ',
+        'scenario_outline': u'シナリオアウトライン|シナリオテンプレート|テンプレ|シナリオテンプレ',
+        'scenario_separator': u'(シナリオ|シナリオアウトライン|シナリオテンプレート|テンプレ|シナリオテンプレ)',
     },
 }

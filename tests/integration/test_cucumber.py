@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # <Lettuce - Behaviour Driven Development for python>
-# Copyright (C) <2010>  Gabriel Falcão <gabriel@nacaolivre.org>
+# Copyright (C) <2010-2011>  Gabriel Falcão <gabriel@nacaolivre.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ def test_django_against_cucumber_django_project():
 
     FileSystem.pushd(current_directory, "django", "cucumber")
 
-    status, out = commands.getstatusoutput("python manage.py harvest --verbosity=3")
+    status, out = commands.getstatusoutput("python manage.py harvest --verbosity=1")
 
     assert "before harvest" in out
     assert "after harvest" in out
